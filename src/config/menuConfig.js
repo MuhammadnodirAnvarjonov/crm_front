@@ -3,67 +3,30 @@
  * Yangi sahifa qo'shish uchun shu yerga element qo'shing + router/index.js da route qo'shing.
  */
 export const MENU_CONFIG = [
-  {
-    key: 'home',
-    label: 'dashboard',
-    pageLabel: 'Bosh sahifa',
-    icon: 'registrationIcon.svg',
-    route: '/home',
-    group: 'Asosiy',
-  },
-  {
-    key: 'users',
-    label: 'employees',
-    pageLabel: 'Xodimlar',
-    icon: 'userIcon.svg',
-    route: '/users',
-    group: "Ma'lumotlar",
-  },
-  {
-    key: 'roles',
-    label: 'roles',
-    pageLabel: 'Rollar',
-    icon: 'role.svg',
-    route: '/roles',
-    group: "Ma'lumotlar",
-  },
+  { key: 'home', label: 'Bosh sahifa', pageLabel: 'Bosh sahifa', icon: 'home', route: '/home', group: 'Asosiy' },
+  { key: 'candidates', label: 'Nomzodlar statistikasi', pageLabel: 'Nomzodlar', icon: 'users', route: '/candidates', group: 'Asosiy' },
+  { key: 'employers', label: 'Ish beruvchilar', pageLabel: 'Ish beruvchilar', icon: 'briefcase', route: '/employers', group: 'Asosiy' },
+  { key: 'free-ads', label: "Bepul e'lonlar", pageLabel: "Bepul e'lonlar", icon: 'tag', route: '/free-ads', group: 'Asosiy' },
+  { key: 'paid-ads', label: "Pullik e'lonlar", pageLabel: "Pullik e'lonlar", icon: 'dollar', route: '/paid-ads', group: 'Asosiy' },
+  { key: 'premium', label: 'Premium shartnomalar', pageLabel: 'Premium', icon: 'star', route: '/premium', group: 'Asosiy' },
+  { key: 'surveys', label: 'Anketalar', pageLabel: 'Anketalar', icon: 'document', route: '/surveys', group: 'Asosiy' },
+  { key: 'tasks', label: 'Vazifalar', pageLabel: 'Vazifalar', icon: 'calendar', route: '/tasks', group: 'Asosiy' },
+  { key: 'messages', label: 'Xabarlar', pageLabel: 'Xabarlar', icon: 'chat', route: '/messages', group: 'Asosiy' },
+  { key: 'blacklist', label: "Qora ro'yxat", pageLabel: "Qora ro'yxat", icon: 'blocked', route: '/blacklist', group: 'Asosiy' },
+  { key: 'advertising', label: 'Reklama', pageLabel: 'Reklama', icon: 'megaphone', route: '/advertising', group: 'Asosiy' },
+  { key: 'agent', label: 'Agent', pageLabel: 'Agent', icon: 'userCog', route: '/agent', group: 'Asosiy' },
 ]
 
-/**
- * Roles/Form.vue uchun pageGroups ni avtomatik hosil qiladi.
- */
 export const buildPageGroups = () => {
   const groupMap = new Map()
   MENU_CONFIG.forEach((item) => {
     if (item.noPermission) return
-    if (item.children) {
-      const gLabel = item.groupLabel || item.label
-      if (!groupMap.has(gLabel)) groupMap.set(gLabel, { label: gLabel, pages: [] })
-      if (item.route) {
-        groupMap.get(gLabel).pages.push({ key: item.key, label: item.pageLabel || item.label })
-      }
-      item.children.forEach((child) => {
-        if (!child.noPermission) {
-          groupMap.get(gLabel).pages.push({ key: child.key, label: child.pageLabel || child.label })
-        }
-      })
-    } else {
-      const gLabel = item.group || 'Asosiy'
-      if (!groupMap.has(gLabel)) groupMap.set(gLabel, { label: gLabel, pages: [] })
-      groupMap.get(gLabel).pages.push({ key: item.key, label: item.pageLabel || item.label })
-    }
+    const gLabel = item.group || 'Asosiy'
+    if (!groupMap.has(gLabel)) groupMap.set(gLabel, { label: gLabel, pages: [] })
+    groupMap.get(gLabel).pages.push({ key: item.key, label: item.pageLabel || item.label })
   })
   return [...groupMap.values()].filter((g) => g.pages.length > 0)
 }
 
-/** Login redirect uchun ruxsat berilgan routelar ro'yxati. */
 export const getPermissionRoutes = () =>
-  MENU_CONFIG.flatMap((item) => {
-    if (item.noPermission) return []
-    if (item.children) {
-      const result = item.children.filter((c) => !c.noPermission).map((c) => ({ key: c.key, route: c.route }))
-      if (item.route) result.unshift({ key: item.key, route: item.route })
-      return result
-    }
-    return [{ key: item.key, route: item.route }]
-  })
+  MENU_CONFIG.filter((i) => !i.noPermission).map((i) => ({ key: i.key, route: i.route }))
