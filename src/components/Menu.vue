@@ -161,14 +161,12 @@ import { ref, watch, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useUserStore } from "@/stores/user";
-import { useChatStore } from "@/stores/chat";
 import { MENU_CONFIG } from "@/config/menuConfig";
 
 const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
-const chatStore = useChatStore();
 
 const props = defineProps({
   collapsed: Boolean,
@@ -231,13 +229,6 @@ const cancelMouseLeave = () => {
 
 // Navigation Logic
 const handleParentClick = (index, item) => {
-  // Chat — modal ochish (navigate qilmaymiz)
-  if (item.key === 'chat') {
-    chatStore.openChatModal();
-    if (window.innerWidth < 1024) emitClose();
-    return;
-  }
-
   // Mobilda collapsed mantiqini ishlatmaymiz
   if (props.collapsed && !props.mobileOpen) {
     if (!item.children || item.children.length === 0) {

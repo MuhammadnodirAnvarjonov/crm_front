@@ -157,8 +157,7 @@ import View from "./View.vue";
 import ConfirmModal from "@/components/ConfirmModal.vue";
 import userService from "@/services/users.service";
 import { usePhoneFormat } from "@/composables/NumberFormat";
-import { editIcon, viewIcon, trashIcon, addIcon, closeIcon, refreshIcon as syncIcon } from "@/components/icons/icon-temp";
-import faceidService from "@/services/faceid.service";
+import { editIcon, viewIcon, trashIcon, addIcon, closeIcon } from "@/components/icons/icon-temp";
 import BaseSearch from "@/components/form/BaseSearch.vue";
 import BaseButton from "@/components/form/BaseButton.vue";
 import UpdateButton from "@/components/form/UpdateButton.vue";
@@ -184,9 +183,6 @@ const itemToDelete = ref(null);
 // Image Preview
 const previewImage = ref(null);
 
-// Hikvision Sync
-const syncing = ref(false);
-
 // Table Columns
 const columns = [
   { key: 'id', label: '#', headerClass: 'w-16 text-center text-gray-500 font-medium', class: 'font-bold text-blue-600 text-center bg-gray-50', render: (row, index) => index + 1 },
@@ -194,15 +190,13 @@ const columns = [
   { key: 'user_name', label: t('user'), slot: 'user', class: "font-semibold text-gray-800" },
   { key: 'gender', label: 'Jinsi', render: (row) => row.gender === 'male' ? 'Erkak' : row.gender === 'female' ? 'Ayol' : '—', headerClass: 'text-center', class: 'text-center font-medium' },
   { key: 'role.name', label: t('role'), render: (row) => row.role?.name || '—', class: 'font-medium' },
-  { key: 'room.name', label: t('room'), render: (row) => row.room?.name || '—', class: 'font-medium' },
   { key: 'phone', label: t('phone'), render: (row) => usePhoneFormat(row.phone), class: 'font-medium text-blue-600' },
-  { key: 'palata_percent', label: 'Palata ulushi', slot: 'palata_share', headerClass: 'text-center', class: 'text-center' },
   { key: 'actions', label: t('actions'), slot: 'actions', headerClass: 'text-end pr-4', class: 'pr-2' },
 ];
 
-// Row class: role yoki room yo'q bo'lsa qizil
+// Row class: role yo'q bo'lsa qizil
 const getRowClass = (row) => {
-  if (!row.role_id || !row.room_id) return 'bg-red-200 hover:bg-red-300 text-red-900';
+  if (!row.role_id) return 'bg-red-200 hover:bg-red-300 text-red-900';
   return '';
 };
 
@@ -281,20 +275,6 @@ const handleConfirmDelete = async () => {
   } catch (err) {
     console.error("O‘chirish xatosi:", err);
     showConfirmModal.value = false;
-  }
-};
-
-// 🔹 Hikvision — barcha xodimlarni qurilmaga yuklash
-const syncToHikvision = async () => {
-  syncing.value = true;
-  try {
-    await faceidService.syncEmployees();
-    alert("Xodimlar Hikvision qurilmalariga muvaffaqiyatli yuklandi!");
-  } catch (err) {
-    console.error("Hikvision sync xatosi:", err);
-    alert("Hikvision sync xatosi: " + (err.response?.data?.message || err.message));
-  } finally {
-    syncing.value = false;
   }
 };
 

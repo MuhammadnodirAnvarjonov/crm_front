@@ -1,25 +1,22 @@
 <script setup>
-import { useNotification } from '@/composables/useNotification'
-import { ref, watch } from 'vue'
-import { useErrorStore } from '@/stores/errors'
+import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useErrorStore } from '@/stores/errors'
+import { useNotification } from '@/composables/useNotification'
 
 const { t } = useI18n()
-const { error, success } = useNotification()
-const error_store = useErrorStore()
+const { error } = useNotification()
+const errorStore = useErrorStore()
 
 watch(
-  () => error_store.error_text,
+  () => errorStore.error_text,
   (val) => {
     if (val) {
-      error(t('error'), val.toString())
-      setTimeout(() => (error_store.error_text = ''), 3000)
+      error(t('error') || 'Xatolik', val.toString())
+      setTimeout(() => (errorStore.error_text = ''), 3000)
     }
   }
 )
-
-// Sinov uchun:
-// success('Maʼlumot saqlandi ✅', 'Bazaga muvaffaqiyatli yozildi')
 </script>
 
 <template>

@@ -1,38 +1,11 @@
-import axios from "axios";
-const END_POINT = "/role";
+import http from './http'
 
-class Service {
-  all(filter) {
-    let url = filter?.text ? '?text=' + filter.text : '';
-    return axios.get(END_POINT + "/all" + url).then((res) => {
-      return res;
-    });
-  }
+const BASE = '/role'
 
-  create(data) {
-    return axios.post(END_POINT + "/create", data).then((res) => {
-      return res;
-    });
-  }
-
-
-  update(id, data) {
-    return axios.patch(END_POINT + `/update/${id}`, data).then((res) => {
-      return res;
-    });
-  }
-
-  getById(id) {
-    return axios.get(END_POINT + `/getById/${id}`).then((res) => {
-      return res;
-    });
-  }
-
-  delete(id) {
-    return axios.delete(END_POINT + `/delete/${id}`).then((res) => {
-      return res;
-    });
-  }
-
+export default {
+  all: (filter = {}) => http.get(`${BASE}/all`, { params: filter }),
+  getById: (id) => http.get(`${BASE}/getById/${id}`),
+  create: (data) => http.post(`${BASE}/create`, data),
+  update: (id, data) => http.patch(`${BASE}/update/${id}`, data),
+  delete: (id) => http.delete(`${BASE}/delete/${id}`),
 }
-export default new Service();
