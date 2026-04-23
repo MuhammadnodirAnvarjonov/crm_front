@@ -7,13 +7,15 @@ import router from '@/router'
 import i18n from '@/i18n'
 import AppIcon from '@/components/icons/AppIcon.vue'
 import { openModal, closeModal } from '@/directives/myModal'
+import { useUiStore } from '@/stores/ui'
 
 import '@/assets/tailwind.css'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const app = createApp(Provider)
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 app.use(i18n)
 
@@ -23,5 +25,8 @@ app.directive('close-modal', closeModal)
 
 app.provide('dayJS', dayjs)
 app.provide('fileUrl', `${BASE_URL}/uploads/`)
+
+// Apply saved theme before mount
+useUiStore(pinia).init()
 
 app.mount('#app')

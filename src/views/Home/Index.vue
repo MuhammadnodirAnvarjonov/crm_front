@@ -118,13 +118,13 @@ const formatMoney = (v) => {
 <template>
   <div class="space-y-4">
     <!-- Welcome -->
-    <div class="flex items-start justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">Xush kelibsiz, {{ userName }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ today }}</p>
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 break-words">Xush kelibsiz, {{ userName }}</h1>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">{{ today }}</p>
       </div>
       <button
-        class="w-11 h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md">
+        class="w-11 h-11 shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path
@@ -243,21 +243,21 @@ const formatMoney = (v) => {
           </svg>
           Haftalik statistika
         </h3>
-        <div class="flex gap-3">
+        <div class="flex gap-2 sm:gap-3">
           <!-- Y-axis labels -->
-          <div class="flex flex-col justify-between text-[10px] text-slate-400 py-1 h-[260px]">
+          <div class="flex flex-col justify-between text-[9px] sm:text-[10px] text-slate-400 py-1 h-[200px] sm:h-[260px]">
             <span v-for="l in yAxisLabels" :key="l">{{ formatMoney(l) }}</span>
           </div>
           <!-- Bars -->
-          <div class="flex-1 flex items-end justify-around gap-2 h-[260px] border-l border-b border-slate-100 pl-2 pb-1 relative">
+          <div class="flex-1 flex items-end justify-around gap-1 sm:gap-2 h-[200px] sm:h-[260px] border-l border-b border-slate-100 pl-2 pb-1 relative">
             <!-- Gridlines -->
             <div class="absolute inset-0 flex flex-col justify-between pl-2 pb-1 pointer-events-none">
               <div v-for="(_, i) in yAxisLabels" :key="i" class="border-t border-slate-50"></div>
             </div>
-            <div v-for="b in barData" :key="b.label" class="flex flex-col items-center gap-2 flex-1 relative z-10">
+            <div v-for="b in barData" :key="b.label" class="flex flex-col items-center gap-1.5 sm:gap-2 flex-1 relative z-10">
               <div class="w-full max-w-[56px] bg-blue-500 rounded-sm transition-all"
-                :style="{ height: (b.value / maxValue * 240) + 'px' }"></div>
-              <span class="text-[11px] text-slate-500">{{ b.label }}</span>
+                :style="{ height: (b.value / maxValue * 100) + '%' }"></div>
+              <span class="text-[10px] sm:text-[11px] text-slate-500">{{ b.label }}</span>
             </div>
           </div>
         </div>

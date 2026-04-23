@@ -111,13 +111,13 @@ const statusBadge = (color) => {
 <template>
   <div class="space-y-4">
     <!-- Title + actions -->
-    <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Ish beruvchilar</h1>
-        <p class="text-sm text-slate-500 mt-1">Kompaniyalar va ish beruvchilarni boshqarish</p>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Ish beruvchilar</h1>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">Kompaniyalar va ish beruvchilarni boshqarish</p>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-[13px] font-semibold shadow-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <button class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-[13px] font-semibold shadow-sm">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -125,7 +125,7 @@ const statusBadge = (color) => {
           </svg>
           Qisman anketa
         </button>
-        <button class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
+        <button class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />

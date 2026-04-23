@@ -124,7 +124,7 @@ const summaryCards = [
 </script>
 
 <template>
-  <div class="flex gap-4">
+  <div class="flex flex-col xl:flex-row gap-4">
     <!-- Left content -->
     <div class="flex-1 min-w-0 space-y-4">
       <!-- Top: Title + Bar chart -->
@@ -269,8 +269,8 @@ const summaryCards = [
       </div>
     </div>
 
-    <!-- Right: donut + summary cards -->
-    <div class="hidden xl:flex flex-col gap-3 w-[140px] shrink-0">
+    <!-- Right: donut + summary cards (mobilda tepada, xl dan boshlab yon tarafda) -->
+    <div class="order-first xl:order-last flex flex-col sm:flex-row xl:flex-col gap-3 w-full xl:w-[140px] shrink-0">
       <!-- Donut -->
       <div class="bg-white rounded-xl border border-slate-100 p-3 relative">
         <svg viewBox="0 0 130 130" class="w-full -rotate-90">
@@ -295,7 +295,7 @@ const summaryCards = [
 
       <!-- Summary stat cards -->
       <div v-for="card in summaryCards" :key="card.label"
-        class="rounded-xl p-3 text-white shadow-sm" :class="card.color">
+        class="rounded-xl p-3 text-white shadow-sm flex-1" :class="card.color">
         <p class="text-[12px] font-medium opacity-90">{{ card.label }}</p>
         <div class="flex items-end justify-between mt-2">
           <p class="text-3xl font-bold">{{ card.value }}</p>

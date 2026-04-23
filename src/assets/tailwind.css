@@ -1,3 +1,72 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Dark mode global overrides ──────────────────────────────────────────
+   Barcha sahifalardagi oq/kulrang fon va matnlar `.dark` holatida avtomatik
+   moslanadi. Tailwind `dark:` modifikatori bilan birga ishlatsa ham bo'ladi. */
+@layer utilities {
+  /* Kartochka/panel fonlari */
+  .dark .bg-white { background-color: rgb(30 41 59); }              /* slate-800 */
+  .dark .bg-slate-50 { background-color: rgb(15 23 42); }           /* slate-900 */
+  .dark .bg-slate-100 { background-color: rgb(51 65 85); }          /* slate-700 */
+
+  /* Chegaralar */
+  .dark .border-slate-100 { border-color: rgb(51 65 85); }          /* slate-700 */
+  .dark .border-slate-200 { border-color: rgb(71 85 105); }         /* slate-600 */
+
+  /* Matn ranglari */
+  .dark .text-slate-900,
+  .dark .text-slate-800 { color: rgb(241 245 249); }                /* slate-100 */
+  .dark .text-slate-700 { color: rgb(226 232 240); }                /* slate-200 */
+  .dark .text-slate-600 { color: rgb(203 213 225); }                /* slate-300 */
+  .dark .text-slate-500 { color: rgb(148 163 184); }                /* slate-400 */
+  .dark .text-slate-400 { color: rgb(100 116 139); }                /* slate-500 */
+
+  /* Hover holatlari */
+  .dark .hover\:bg-slate-50:hover { background-color: rgb(51 65 85); }
+  .dark .hover\:bg-slate-100:hover { background-color: rgb(51 65 85); }
+  .dark .hover\:bg-white:hover { background-color: rgb(30 41 59); }
+
+  /* Placeholderlar */
+  .dark .placeholder-slate-400::placeholder { color: rgb(100 116 139); }
+}
+
+/* Input, select, textarea — dark mode */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.dark select,
+.dark textarea {
+  background-color: rgb(51 65 85);                                  /* slate-700 */
+  color: rgb(226 232 240);                                          /* slate-200 */
+  border-color: rgb(71 85 105);                                     /* slate-600 */
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgb(100 116 139);                                          /* slate-500 */
+}
+
+/* Select dropdown — native dark (Firefox/Chrome) */
+.dark select option {
+  background-color: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+/* Pastel fonlarni biroz quyuqlashtirish (dark'da tekis ko'rinishi uchun) */
+.dark .bg-blue-50 { background-color: rgb(30 58 138 / 0.25); }      /* blue-900/25 */
+.dark .bg-emerald-50 { background-color: rgb(6 78 59 / 0.25); }
+.dark .bg-amber-50 { background-color: rgb(120 53 15 / 0.25); }
+.dark .bg-rose-50 { background-color: rgb(136 19 55 / 0.25); }
+.dark .bg-purple-50 { background-color: rgb(88 28 135 / 0.25); }
+.dark .bg-orange-50 { background-color: rgb(124 45 18 / 0.25); }
+.dark .bg-pink-50 { background-color: rgb(131 24 67 / 0.25); }
+.dark .bg-sky-50 { background-color: rgb(12 74 110 / 0.25); }
+.dark .bg-teal-50 { background-color: rgb(19 78 74 / 0.25); }
+.dark .bg-indigo-50 { background-color: rgb(49 46 129 / 0.25); }
+
+/* Gray-50 / red-50 / green-50 / yellow-50 */
+.dark .bg-gray-50 { background-color: rgb(15 23 42); }
+.dark .bg-gray-100 { background-color: rgb(51 65 85); }
+.dark .bg-red-50 { background-color: rgb(127 29 29 / 0.25); }
+.dark .bg-green-50 { background-color: rgb(6 78 59 / 0.25); }
+.dark .bg-yellow-50 { background-color: rgb(120 53 15 / 0.25); }
