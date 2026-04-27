@@ -62,13 +62,13 @@ const sizeClasses = {
 };
 
 const statusClasses = {
-  primary: 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200',
-  success: 'bg-green-600 hover:bg-green-700 text-white shadow-green-200',
-  danger: 'bg-red-600 hover:bg-red-700 text-white shadow-red-200',
-  warning: 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-100',
-  gray: 'bg-gray-100 hover:bg-gray-200 text-gray-700 shadow-transparent border border-gray-200',
-  white: 'bg-white hover:bg-gray-50 text-gray-800 shadow-gray-200 border border-gray-200',
-  pink: 'bg-pink-500 hover:bg-pink-600 text-white shadow-pink-200',
-  table: 'group p-2 rounded-lg bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 hover:border-amber-200 active:scale-90 transition-all duration-200'
+  primary: 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 text-white shadow-blue-200 dark:shadow-blue-900/40',
+  success: 'bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-400 text-white shadow-green-200 dark:shadow-green-900/40',
+  danger: 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-400 text-white shadow-red-200 dark:shadow-red-900/40',
+  warning: 'bg-amber-500 hover:bg-amber-600 dark:bg-amber-400 dark:hover:bg-amber-300 dark:text-slate-900 text-white shadow-amber-100 dark:shadow-amber-900/40',
+  gray: 'bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 shadow-transparent border border-gray-200 dark:border-slate-600',
+  white: 'bg-white hover:bg-gray-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-100 shadow-gray-200 dark:shadow-slate-900/40 border border-gray-200 dark:border-slate-600',
+  pink: 'bg-pink-500 hover:bg-pink-600 dark:bg-pink-500 dark:hover:bg-pink-400 text-white shadow-pink-200 dark:shadow-pink-900/40',
+  table: 'group p-2 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 active:scale-90 transition-all duration-200'
 };
 </script>

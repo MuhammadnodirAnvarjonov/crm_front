@@ -1,11 +1,11 @@
 <template>
-  <div class="p-4 md:p-6 bg-white rounded-3xl h-full shadow-xl border border-gray-100 flex flex-col">
+  <div class="p-4 md:p-6 bg-white dark:bg-slate-800 rounded-3xl h-full shadow-xl dark:shadow-slate-900/50 border border-gray-100 dark:border-slate-700 flex flex-col">
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
       <!-- Title -->
-      <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
         <span>{{ $t('employees') }}</span>
-        <span class="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
+        <span class="text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-0.5 rounded-lg border border-blue-100 dark:border-blue-900/50">
           {{ filteredUsers.length }}
         </span>
       </h2>
@@ -33,48 +33,48 @@
     </div>
 
     <!-- Table Section -->
-    <div class="flex-1 min-h-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50/30">
+    <div class="flex-1 min-h-0 overflow-hidden rounded-xl border border-gray-100 dark:border-slate-700 bg-gray-50/30 dark:bg-slate-900/30">
       <ResponsiveTable :columns="columns" :data="filteredUsers" :rowClass="getRowClass" @refresh="getUsers">
         <template #user="{ item }">
           <div class="flex items-center gap-3">
             <img v-if="item.image" :src="fileUrl + item.image"
-              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 shrink-0 cursor-pointer hover:ring-2 hover:ring-pink-300 transition-all"
+              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-slate-600 shrink-0 cursor-pointer hover:ring-2 hover:ring-pink-300 dark:hover:ring-pink-500 transition-all"
               @click.stop="previewImage = fileUrl + item.image" />
             <div v-else class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
               style="background: linear-gradient(135deg, #E91E8C, #13286e)">
               {{ item.user_name?.charAt(0).toUpperCase() }}
             </div>
-            <span class="font-semibold text-gray-800">{{ item.user_name }}</span>
+            <span class="font-semibold text-gray-800 dark:text-slate-100">{{ item.user_name }}</span>
           </div>
         </template>
         <template #palata_share="{ item }">
           <div class="text-center text-xs">
-            <span v-if="Number(item.palata_percent)" class="font-bold text-purple-600">{{ Number(item.palata_percent) }}%</span>
-            <span v-if="Number(item.palata_percent) && Number(item.palata_summa)" class="text-gray-400 mx-0.5">+</span>
-            <span v-if="Number(item.palata_summa)" class="font-bold text-green-600">{{ Number(item.palata_summa).toLocaleString() }}</span>
-            <span v-if="!Number(item.palata_percent) && !Number(item.palata_summa)" class="text-gray-400">—</span>
+            <span v-if="Number(item.palata_percent)" class="font-bold text-purple-600 dark:text-purple-400">{{ Number(item.palata_percent) }}%</span>
+            <span v-if="Number(item.palata_percent) && Number(item.palata_summa)" class="text-gray-400 dark:text-slate-500 mx-0.5">+</span>
+            <span v-if="Number(item.palata_summa)" class="font-bold text-green-600 dark:text-green-400">{{ Number(item.palata_summa).toLocaleString() }}</span>
+            <span v-if="!Number(item.palata_percent) && !Number(item.palata_summa)" class="text-gray-400 dark:text-slate-500">—</span>
           </div>
         </template>
         <template #actions="{ item }">
           <div class="flex items-center justify-end gap-2">
             <!-- View -->
             <button
-              class="group p-2 rounded-lg bg-white border border-blue-100 text-blue-600 hover:bg-blue-50 hover:border-blue-200 active:scale-90 transition-all duration-200"
-              title="Ko‘rish" @click="openView(item)">
+              class="group p-2 rounded-lg bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 active:scale-90 transition-all duration-200"
+              :title="$t('view')" @click="openView(item)">
               <viewIcon size="w-4 h-4" class="group-hover:scale-110 transition-transform" />
             </button>
 
             <!-- Edit -->
             <button
-              class="group p-2 rounded-lg bg-white border border-amber-100 text-amber-600 hover:bg-amber-50 hover:border-amber-200 active:scale-90 transition-all duration-200"
+              class="group p-2 rounded-lg bg-white dark:bg-slate-800 border border-amber-100 dark:border-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:border-amber-200 active:scale-90 transition-all duration-200"
               :title="$t('edit')" @click="openForm(item)">
               <editIcon size="w-4 h-4" class="group-hover:scale-110 transition-transform" />
             </button>
 
             <!-- Delete -->
             <button
-              class="group p-2 rounded-lg bg-white border border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200 active:scale-90 transition-all duration-200"
-              title="O‘chirish" @click="promptDelete(item)">
+              class="group p-2 rounded-lg bg-white dark:bg-slate-800 border border-red-100 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 active:scale-90 transition-all duration-200"
+              :title="$t('delete')" @click="promptDelete(item)">
               <trashIcon size="w-4 h-4" class="group-hover:scale-110 transition-transform" />
             </button>
           </div>
@@ -89,13 +89,13 @@
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="closeForm"></div>
 
         <!-- Modal Content -->
-        <div class="modal-content relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
+        <div class="modal-content relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh]">
           <!-- Modal Header -->
-          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
-            <h3 class="text-lg font-bold text-gray-800">
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900/40 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">
               {{ editData ? $t('edit') : $t('add') }}
             </h3>
-            <button class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+            <button class="text-gray-400 dark:text-white hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
               @click="closeForm">
               <closeIcon class="w-6 h-6" />
             </button>
@@ -114,12 +114,12 @@
       <div v-if="showViewModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="closeView"></div>
 
-        <div class="modal-content relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-6">
-          <button class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors" @click="closeView">
+        <div class="modal-content relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl p-6">
+          <button class="absolute top-4 right-4 text-gray-400 dark:text-white hover:text-red-500 dark:hover:text-red-400 transition-colors" @click="closeView">
             <closeIcon class="w-6 h-6" />
           </button>
-          <div class="mb-4 pb-2 border-b border-gray-100">
-            <h3 class="text-lg font-bold text-gray-800">{{ $t('details') }}</h3>
+          <div class="mb-4 pb-2 border-b border-gray-100 dark:border-slate-700">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">{{ $t('details') }}</h3>
           </div>
           <View :view-data="selectedUser" @close="closeView" />
         </div>
@@ -141,7 +141,7 @@
 
     <!-- CONFIRM MODAL (Delete) -->
     <ConfirmModal v-if="showConfirmModal" :show="showConfirmModal" :title="$t('delete')"
-      :message="`${itemToDelete?.user_name} foydalanuvchisini o‘chirishni tasdiqlaysizmi?`" confirm-text="Ha, o‘chirish"
+      :message="`${itemToDelete?.user_name} ${$t('confirm_delete_user')}`" :confirm-text="$t('yes_delete')"
       :cancel-text="$t('cancel')" type="danger" :duration="5" @confirm="handleConfirmDelete"
       @cancel="showConfirmModal = false" />
 
@@ -185,18 +185,17 @@ const previewImage = ref(null);
 
 // Table Columns
 const columns = [
-  { key: 'id', label: '#', headerClass: 'w-16 text-center text-gray-500 font-medium', class: 'font-bold text-blue-600 text-center bg-gray-50', render: (row, index) => index + 1 },
-  { key: 'id', label: t('Hikvision ID') , headerClass: 'w-24' },
-  { key: 'user_name', label: t('user'), slot: 'user', class: "font-semibold text-gray-800" },
-  { key: 'gender', label: 'Jinsi', render: (row) => row.gender === 'male' ? 'Erkak' : row.gender === 'female' ? 'Ayol' : '—', headerClass: 'text-center', class: 'text-center font-medium' },
+  { key: 'id', label: '#', headerClass: 'w-16 text-center text-gray-500 dark:text-slate-400 font-medium', class: 'font-bold text-blue-600 dark:text-blue-400 text-center bg-gray-50 dark:bg-slate-900/40', render: (row, index) => index + 1 },
+  { key: 'user_name', label: t('user'), slot: 'user', class: "font-semibold text-gray-800 dark:text-slate-100" },
+  { key: 'gender', label: t('gender'), render: (row) => row.gender === 'male' ? t('male') : row.gender === 'female' ? t('female') : '—', headerClass: 'text-center', class: 'text-center font-medium' },
   { key: 'role.name', label: t('role'), render: (row) => row.role?.name || '—', class: 'font-medium' },
-  { key: 'phone', label: t('phone'), render: (row) => usePhoneFormat(row.phone), class: 'font-medium text-blue-600' },
+  { key: 'phone', label: t('phone'), render: (row) => usePhoneFormat(row.phone), class: 'font-medium text-blue-600 dark:text-blue-400' },
   { key: 'actions', label: t('actions'), slot: 'actions', headerClass: 'text-end pr-4', class: 'pr-2' },
 ];
 
 // Row class: role yo'q bo'lsa qizil
 const getRowClass = (row) => {
-  if (!row.role_id) return 'bg-red-200 hover:bg-red-300 text-red-900';
+  if (!row.role_id) return 'bg-red-200 dark:bg-red-900/40 hover:bg-red-300 dark:hover:bg-red-900/60 text-red-900 dark:text-red-200';
   return '';
 };
 

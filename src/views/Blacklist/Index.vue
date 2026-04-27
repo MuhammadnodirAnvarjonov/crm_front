@@ -30,8 +30,8 @@ const removeFromList = (idx) => {
   <div class="space-y-4">
     <!-- Header -->
     <div>
-      <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Qora Ro'yxat</h1>
-      <p class="text-xs sm:text-sm text-slate-500 mt-1">Ishonchsiz va qora ro'yxatga tushgan nomzodlar</p>
+      <h1 class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">{{ $t('blacklist') }}</h1>
+      <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">{{ $t('blacklist_subtitle') }}</p>
     </div>
 
     <!-- Search -->
@@ -42,7 +42,7 @@ const removeFromList = (idx) => {
           <circle cx="11" cy="11" r="7" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input v-model="searchQuery" placeholder="Nomzod ismi yoki telefon raqamini kiriting"
+        <input v-model="searchQuery" :placeholder="$t('name_or_phone')"
           class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
       </div>
     </div>

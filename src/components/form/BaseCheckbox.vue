@@ -9,10 +9,10 @@
     <!-- Checkbox qutichasi (Custom Design) -->
     <div :class="[
       'relative flex items-center justify-center border-2 rounded-lg transition-all duration-200 ease-in-out',
-      'bg-white border-gray-300 shadow-sm',
-      'group-hover:border-blue-400', // Hover effekti
-      'peer-focus:ring-4 peer-focus:ring-blue-100 peer-focus:border-blue-500', // Focus effekti
-      'peer-checked:bg-blue-600 peer-checked:border-blue-600', // Checked holati
+      'bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-500 shadow-sm',
+      'group-hover:border-blue-400 dark:group-hover:border-blue-500', // Hover effekti
+      'peer-focus:ring-4 peer-focus:ring-blue-100 dark:peer-focus:ring-blue-500/30 peer-focus:border-blue-500', // Focus effekti
+      'peer-checked:bg-blue-600 peer-checked:border-blue-600 dark:peer-checked:bg-blue-500 dark:peer-checked:border-blue-500', // Checked holati
       sizeClasses[size].box // O'lcham klasslari
     ]">
       <!-- Tichka (Check) Ikonkasi -->
@@ -28,8 +28,8 @@
 
     <!-- Label matni -->
     <span v-if="label" :class="[
-      'ml-3 font-medium text-gray-700 transition-colors',
-      'peer-checked:text-gray-900',
+      'ml-3 font-medium text-gray-700 dark:text-slate-200 transition-colors',
+      'peer-checked:text-gray-900 dark:peer-checked:text-slate-100',
       sizeClasses[size].text
     ]">
       {{ label }}

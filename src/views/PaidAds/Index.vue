@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
+import BaseButton from '@/components/form/BaseButton.vue'
+import { addIcon } from '@/components/icons/icon-temp'
 
 // Top stat cards (same as Bepul page)
 const statCards = [
@@ -124,15 +126,11 @@ const formatMoney = (v) => v.toLocaleString('fr-FR').replace(/\s/g, ',')
           {{ tab }}
         </button>
       </div>
-      <button
-        class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm whitespace-nowrap">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Yangi ish beruvchi
-      </button>
+      <BaseButton :label="$t('new_employer')" status="primary" size="sm">
+        <template #icon>
+          <addIcon size="w-4 h-4" />
+        </template>
+      </BaseButton>
     </div>
 
     <!-- Employer cards grid -->

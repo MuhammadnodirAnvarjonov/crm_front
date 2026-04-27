@@ -19,7 +19,7 @@
       </div>
     </div>
 
-    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 sticky bottom-0">
+    <div class="px-6 py-4 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 flex justify-end gap-3 sticky bottom-0">
       <BaseButton type="button" status="gray" @click="$emit('close')">{{ $t('cancel') }}</BaseButton>
       <BaseButton type="submit" status="primary">{{ $t('save') }}</BaseButton>
     </div>

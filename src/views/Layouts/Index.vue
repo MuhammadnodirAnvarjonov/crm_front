@@ -85,8 +85,8 @@ onBeforeUnmount(() => {
         <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-spin"></div>
       </div>
 
-      <p class="text-[14px] font-semibold text-slate-700 dark:text-slate-200">Operator Panel</p>
-      <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Tizim yuklanmoqda...</p>
+      <p class="text-[14px] font-semibold text-slate-700 dark:text-slate-200">{{ $t('operator_panel') }}</p>
+      <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{{ $t('loading_app') }}</p>
     </div>
   </div>
 
@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
                 <div class="absolute inset-0 rounded-full border-[3px] border-blue-100 dark:border-slate-700"></div>
                 <div class="absolute inset-0 rounded-full border-[3px] border-transparent border-t-blue-600 animate-spin"></div>
               </div>
-              <p class="text-[12px] font-medium text-slate-600 dark:text-slate-300">Yuklanmoqda...</p>
+              <p class="text-[12px] font-medium text-slate-600 dark:text-slate-300">{{ $t('loading') }}</p>
             </div>
           </div>
         </transition>

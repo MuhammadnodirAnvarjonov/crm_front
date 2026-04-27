@@ -1,26 +1,25 @@
 <template>
     <div class="flex flex-col" :class="containerGap">
         <!-- Label: Hajmga qarab shrift o'zgaradi -->
-        <label v-if="label" :for="uid" class="font-semibold text-gray-700 select-none" :class="labelSizeClasses">
+        <label v-if="label" :for="uid" class="font-semibold text-gray-700 dark:text-slate-200 select-none" :class="labelSizeClasses">
             {{ label }}
             <!-- O'ZGARTIRILDI: Agar required bo'lsa, qizil yulduzcha chiqadi -->
-            <span v-if="required" class="text-red-500 ml-0.5">*</span>
+            <span v-if="required" class="text-red-500 dark:text-red-400 ml-0.5">*</span>
         </label>
 
         <div class="relative">
             <input :id="uid" :required="required" v-bind="$attrs" v-model="model" :maxlength="maxlength" @input="handleInput" :type="type"
                 :class="[
-                    'w-full border bg-white shadow-sm transition-all duration-200 outline-none',
-                    // Agar validatsiya xatosi bo'lsa border qizil bo'lishi uchun shart qo'shish mumkin (ixtiyoriy)
-                    'border-gray-300 hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20',
-                    'placeholder:text-gray-400 disabled:bg-gray-50 disabled:text-gray-400',
+                    'w-full border bg-white dark:bg-slate-700/60 text-gray-900 dark:text-slate-100 shadow-sm transition-all duration-200 outline-none',
+                    'border-gray-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/30',
+                    'placeholder:text-gray-400 dark:placeholder:text-slate-400 disabled:bg-gray-50 dark:disabled:bg-slate-800 disabled:text-gray-400 dark:disabled:text-slate-500',
                     sizeClasses
                 ]" />
 
             <!-- Belgilar soni -->
             <span v-if="showCount && maxlength"
                 class="absolute right-2 bottom-1 font-medium transition-colors pointer-events-none" :class="[
-                    isNearLimit ? 'text-red-500' : 'text-gray-400',
+                    isNearLimit ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-slate-500',
                     size === 'sm' ? 'text-[9px]' : 'text-[10px]'
                 ]">
                 {{ currentLength }}/{{ maxlength }}

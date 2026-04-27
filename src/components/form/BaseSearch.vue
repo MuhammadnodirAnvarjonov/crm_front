@@ -4,7 +4,7 @@
         <!-- Search Icon (SVG) -->
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <svg :class="[
-                'text-gray-400 group-focus-within:text-blue-500 transition-colors duration-300',
+                'text-gray-400 dark:text-slate-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors duration-300',
                 sizeMap[size].icon
             ]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -15,13 +15,13 @@
         <!-- Input -->
         <input type="text" :value="modelValue" @input="$emit('update:modelValue', $event.target.value)"
             :placeholder="placeholder || $t('search')" :class="[
-                'w-full bg-gray-50 border border-gray-100 rounded-2xl outline-none transition-all duration-300 shadow-sm text-gray-700 placeholder-gray-400 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-500',
+                'w-full bg-gray-50 dark:bg-slate-700/60 border border-gray-100 dark:border-slate-600 rounded-2xl outline-none transition-all duration-300 shadow-sm text-gray-700 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-400 focus:bg-white dark:focus:bg-slate-700 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500',
                 sizeMap[size].input
             ]" />
 
         <!-- Tozalash tugmasi (X icon SVG) -->
         <button v-if="modelValue && clearable" @click="$emit('update:modelValue', '')" type="button"
-            class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-400 transition-colors">
+            class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 dark:text-slate-500 hover:text-red-400 dark:hover:text-red-400 transition-colors">
             <svg :class="sizeMap[size].clearIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

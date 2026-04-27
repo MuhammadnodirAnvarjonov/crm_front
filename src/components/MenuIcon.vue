@@ -69,6 +69,20 @@ defineProps({ name: String, class: String })
     <circle cx="18" cy="17" r="2.5" />
     <path d="M18 14.5v-1M18 20.5v-1M21.2 15.5l-.87.5M15.67 18l-.87.5M21.2 18.5l-.87-.5M15.67 16l-.87-.5" />
   </svg>
+  <svg v-else-if="name === 'idCard'" :class="$props.class" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="12" r="2.5" />
+    <path d="M5.5 17c.5-1.6 1.9-2.5 3.5-2.5s3 .9 3.5 2.5" />
+    <line x1="14" y1="10" x2="19" y2="10" />
+    <line x1="14" y1="13" x2="18" y2="13" />
+    <line x1="14" y1="16" x2="17" y2="16" />
+  </svg>
+  <svg v-else-if="name === 'shield'" :class="$props.class" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
   <svg v-else :class="$props.class" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
     <circle cx="12" cy="12" r="9" />
   </svg>

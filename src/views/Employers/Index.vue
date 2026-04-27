@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
+import BaseButton from '@/components/form/BaseButton.vue'
+import { addIcon } from '@/components/icons/icon-temp'
 
 const searchQuery = ref('')
 const topFilter = ref('Barchasi')
@@ -113,26 +115,20 @@ const statusBadge = (color) => {
     <!-- Title + actions -->
     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div>
-        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">Ish beruvchilar</h1>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">Kompaniyalar va ish beruvchilarni boshqarish</p>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">{{ $t('employers') }}</h1>
+        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">{{ $t('manage_employers') }}</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <button class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-[13px] font-semibold shadow-sm">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Qisman anketa
-        </button>
-        <button class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          To'liq anketa
-        </button>
+        <BaseButton :label="$t('partial_form')" status="primary" size="sm">
+          <template #icon>
+            <addIcon size="w-4 h-4" />
+          </template>
+        </BaseButton>
+        <BaseButton :label="$t('full_form')" status="primary" size="sm">
+          <template #icon>
+            <addIcon size="w-4 h-4" />
+          </template>
+        </BaseButton>
       </div>
     </div>
 
@@ -144,7 +140,7 @@ const statusBadge = (color) => {
           <circle cx="11" cy="11" r="7" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input v-model="searchQuery" placeholder="Kompaniya nomi yoki telefon raqamini qidiring..."
+        <input v-model="searchQuery" :placeholder="$t('company_or_phone_search')"
           class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
       </div>
       <div class="flex items-center gap-1 bg-slate-50 rounded-lg p-1 flex-wrap">

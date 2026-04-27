@@ -1,7 +1,9 @@
 <template>
     <button class="p-2.5 rounded-xl border transition-all duration-200 active:scale-95 flex-shrink-0
            bg-[#fdf0f8] border-[#fce7f3] text-[#E91E8C]
-           hover:bg-[#E91E8C] hover:text-white hover:border-[#E91E8C]" title="Yangilash">
+           hover:bg-[#E91E8C] hover:text-white hover:border-[#E91E8C]
+           dark:bg-pink-900/20 dark:border-pink-900/40 dark:text-pink-400
+           dark:hover:bg-pink-500 dark:hover:text-white dark:hover:border-pink-500" title="Yangilash">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
             class="w-5 h-5">
             <path stroke-linecap="round" stroke-linejoin="round"

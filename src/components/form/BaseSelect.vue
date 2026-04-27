@@ -2,7 +2,7 @@
   <div class="flex items-end" v-bind="$attrs">
     <div class="flex-1 min-w-0">
       <!-- Label -->
-      <label v-if="label" class="text-sm text-gray-600 mb-1 block font-bold">
+      <label v-if="label" class="text-sm text-gray-600 dark:text-slate-200 mb-1 block font-bold">
         {{ label }}
       </label>
 
@@ -23,11 +23,11 @@
           :class="[
             sizeClasses,
             disabled
-              ? 'bg-gray-100 border-gray-200 text-gray-400 pointer-events-none'
-              : 'bg-white border-gray-300 hover:border-gray-400',
-            isOpen && !disabled ? 'ring-2 ring-blue-300 border-blue-400' : '',
-            isOpen ? 'cursor-text placeholder:text-gray-400' : 'cursor-pointer',
-            selectedLabel && !isOpen ? 'text-gray-900' : 'text-gray-500',
+              ? 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500 pointer-events-none'
+              : 'bg-white dark:bg-slate-700/60 border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500',
+            isOpen && !disabled ? 'ring-2 ring-blue-300 dark:ring-blue-500/40 border-blue-400 dark:border-blue-500' : '',
+            isOpen ? 'cursor-text placeholder:text-gray-400 dark:placeholder:text-slate-400' : 'cursor-pointer',
+            selectedLabel && !isOpen ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400',
             rightPaddingClass
           ]"
         />
@@ -35,7 +35,7 @@
         <!-- Chevron icon (hech narsa tanlanmagan va ochiq emas) -->
         <span
           v-if="!model && !isOpen && !added"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" :class="disabled ? 'opacity-40' : ''"
             fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -45,7 +45,7 @@
         <!-- Search icon (ochiq bo'lganda) -->
         <span
           v-if="isOpen"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none">
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 dark:text-blue-300 pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -58,7 +58,7 @@
           type="button"
           @mousedown.prevent.stop="emit('open-modal')"
           :class="model && clearable ? 'right-8' : 'right-2'"
-          class="absolute top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors z-10">
+          class="absolute top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors z-10">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="1"></circle>
@@ -72,7 +72,7 @@
           v-if="model && clearable && !isOpen"
           type="button"
           @mousedown.prevent="clearSelection"
-          class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors z-10">
+          class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-400 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors z-10">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -95,12 +95,12 @@
         v-if="isOpen"
         ref="dropdownMenuRef"
         :style="dropdownStyle"
-        class="fixed bg-white shadow-xl rounded-md ring-1 ring-black ring-opacity-5 overflow-hidden"
+        class="fixed bg-white dark:bg-slate-800 shadow-xl rounded-md ring-1 ring-black/5 dark:ring-slate-600 overflow-hidden"
         style="z-index: 9999"
         @mousedown.stop>
         <ul class="overflow-auto py-1 text-sm" style="max-height: 260px">
           <li v-if="filteredOptions.length === 0"
-            class="text-gray-500 cursor-default select-none py-4 text-center px-4 text-sm">
+            class="text-gray-500 dark:text-slate-400 cursor-default select-none py-4 text-center px-4 text-sm">
             Ma'lumot topilmadi
           </li>
 
@@ -109,11 +109,11 @@
             v-for="opt in filteredOptions"
             :key="opt[valueKey]"
             @mousedown.prevent="selectOption(opt)"
-            class="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-blue-50 transition-colors"
-            :class="model === opt[valueKey] ? 'text-blue-900 bg-blue-50 font-medium' : 'text-gray-900'">
+            class="cursor-pointer select-none relative py-2.5 pl-3 pr-9 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors"
+            :class="model === opt[valueKey] ? 'text-blue-900 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 font-medium' : 'text-gray-900 dark:text-slate-200'">
             <span class="block truncate">{{ opt[labelKey] }}</span>
             <span v-if="model === opt[valueKey]"
-              class="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600">
+              class="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600 dark:text-blue-400">
               <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd"
                   d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"

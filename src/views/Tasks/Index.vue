@@ -1,31 +1,43 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import BaseButton from '@/components/form/BaseButton.vue'
+import { addIcon } from '@/components/icons/icon-temp'
+
+const { t } = useI18n()
 
 // Top stat cards
-const statCards = [
-  { label: 'Jami vazifalar', value: 10, icon: 'doc', bg: 'bg-slate-50', color: 'text-slate-600' },
-  { label: 'Kutilmoqda', value: 7, icon: 'clock', bg: 'bg-amber-50', color: 'text-amber-500' },
-  { label: 'Jarayonda', value: 2, icon: 'play', bg: 'bg-blue-50', color: 'text-blue-500' },
-  { label: 'Bajarildi', value: 0, icon: 'check', bg: 'bg-emerald-50', color: 'text-emerald-500' },
-  { label: "Muddati o'tdi", value: 1, icon: 'alert', bg: 'bg-rose-50', color: 'text-rose-500' },
-]
+const statCards = computed(() => [
+  { label: t('tasks_total'), value: 10, icon: 'doc', bg: 'bg-slate-50', color: 'text-slate-600' },
+  { label: t('pending'), value: 7, icon: 'clock', bg: 'bg-amber-50', color: 'text-amber-500' },
+  { label: t('in_progress_status'), value: 2, icon: 'play', bg: 'bg-blue-50', color: 'text-blue-500' },
+  { label: t('done'), value: 0, icon: 'check', bg: 'bg-emerald-50', color: 'text-emerald-500' },
+  { label: t('overdue'), value: 1, icon: 'alert', bg: 'bg-rose-50', color: 'text-rose-500' },
+])
 
 // Task type filters
 const activeType = ref('all')
-const taskTypes = [
-  { key: 'all', label: 'Barchasi', count: 10, color: 'blue' },
-  { key: 'call', label: "Qo'ng'iroq", count: 2, color: 'sky' },
-  { key: 'callback', label: 'Qayta aloqa', count: 2, color: 'teal' },
-  { key: 'check', label: 'Tekshiruv', count: 1, color: 'pink' },
-  { key: 'payment', label: "To'lov eslatmasi", count: 1, color: 'orange' },
-  { key: 'sale', label: 'Sotuv', count: 1, color: 'amber' },
-  { key: 'offer', label: 'Taklif', count: 1, color: 'purple' },
-  { key: 'contract', label: 'Shartnoma', count: 1, color: 'emerald' },
-  { key: 'ad', label: 'Reklama taklifi', count: 1, color: 'rose' },
-]
+const taskTypes = computed(() => [
+  { key: 'all', label: t('all_tasks'), count: 10, color: 'blue' },
+  { key: 'call', label: t('task_call'), count: 2, color: 'sky' },
+  { key: 'callback', label: t('task_callback'), count: 2, color: 'teal' },
+  { key: 'check', label: t('task_check'), count: 1, color: 'pink' },
+  { key: 'payment', label: t('task_payment'), count: 1, color: 'orange' },
+  { key: 'sale', label: t('task_sale'), count: 1, color: 'amber' },
+  { key: 'offer', label: t('task_offer'), count: 1, color: 'purple' },
+  { key: 'contract', label: t('task_contract'), count: 1, color: 'emerald' },
+  { key: 'ad', label: t('task_ad'), count: 1, color: 'rose' },
+])
 
-const activeStatus = ref('Barchasi')
-const statuses = ['Barchasi', 'Kutilmoqda', 'Jarayonda', 'Bajarildi', "Muddati o'tdi", "Aloqa yo'q"]
+const activeStatus = ref('all')
+const statuses = computed(() => [
+  { key: 'all', label: t('all_tasks') },
+  { key: 'pending', label: t('pending') },
+  { key: 'progress', label: t('in_progress_status') },
+  { key: 'done', label: t('done') },
+  { key: 'overdue', label: t('overdue') },
+  { key: 'no_contact', label: t('no_contact') },
+])
 
 // Tasks
 const tasks = ref([
@@ -113,10 +125,10 @@ const tasks = ref([
 const filtered = computed(() => {
   let list = tasks.value
   if (activeType.value !== 'all') {
-    list = list.filter((t) => t.type === activeType.value)
+    list = list.filter((task) => task.type === activeType.value)
   }
-  if (activeStatus.value !== 'Barchasi') {
-    list = list.filter((t) => t.status === activeStatus.value)
+  if (activeStatus.value !== 'all') {
+    list = list.filter((task) => task.statusType === activeStatus.value)
   }
   return list
 })
@@ -167,15 +179,11 @@ const iconBg = (c) => {
   <div class="space-y-4">
     <!-- Header with action -->
     <div class="flex justify-end">
-      <button
-        class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Yangi vazifa
-      </button>
+      <BaseButton :label="$t('new_task')" status="primary" size="sm">
+        <template #icon>
+          <addIcon size="w-4 h-4" />
+        </template>
+      </BaseButton>
     </div>
 
     <!-- Stat cards -->
@@ -237,10 +245,10 @@ const iconBg = (c) => {
       <div>
         <p class="text-[12px] font-semibold text-slate-500 mb-2">Holat</p>
         <div class="flex flex-wrap gap-2">
-          <button v-for="s in statuses" :key="s" @click="activeStatus = s"
+          <button v-for="s in statuses" :key="s.key" @click="activeStatus = s.key"
             class="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition"
-            :class="activeStatus === s ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'">
-            {{ s }}
+            :class="activeStatus === s.key ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'">
+            {{ s.label }}
           </button>
         </div>
       </div>
