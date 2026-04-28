@@ -19,6 +19,7 @@ export const MENU_CONFIG = [
   { key: 'users', label: 'employees', pageLabel: 'employees', icon: 'idCard', route: '/users', group: 'menu_settings' },
   { key: 'roles', label: 'roles', pageLabel: 'roles', icon: 'shield', route: '/roles', group: 'menu_settings' },
   { key: 'job-types', label: 'job_types', pageLabel: 'job_types', icon: 'briefcase', route: '/job-types', group: 'menu_settings' },
+  { key: 'anketa-types', label: 'anketa_types', pageLabel: 'anketa_types', icon: 'document', route: '/anketa-types', group: 'menu_settings' },
 ]
 
 export const buildPageGroups = () => {

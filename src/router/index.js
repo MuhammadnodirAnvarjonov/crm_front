@@ -27,6 +27,7 @@ const router = createRouter({
         { path: '/users', name: 'users', component: () => import('@/views/users/Index.vue') },
         { path: '/roles', name: 'roles', component: () => import('@/views/roles/Index.vue') },
         { path: '/job-types', name: 'job-types', component: () => import('@/views/JobTypes/Index.vue') },
+        { path: '/anketa-types', name: 'anketa-types', component: () => import('@/views/AnketaTypes/Index.vue') },
       ],
     },
     { path: '/login', name: 'Login', component: () => import('@/views/Log/Index.vue') },

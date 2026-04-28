@@ -1,5 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import Form from './Form.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import anketaService from '@/services/anketa.service'
+import anketaTypesService from '@/services/anketaTypes.service'
+import { closeIcon } from '@/components/icons/icon-temp'
+
+const { locale } = useI18n()
 
 const statCards = [
   { label: "Qo'ng'iroqlar", today: 9, total: 16, icon: 'clock', iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
@@ -12,69 +20,103 @@ const statCards = [
 
 const dateFilter = ref('')
 const searchQuery = ref('')
-const categoryFilter = ref('Barchasi')
+const anketaTypeFilter = ref(null)
 
-// Candidates / applications
-const candidates = ref([
-  {
-    name: 'Alisher Umarov', age: 25, gender: 'Erkak', category: 'A', categoryColor: 'amber',
-    phone: '+998901234567', job: 'Dasturchi', location: 'Toshkent, Yunusobod',
-    salary: 8000000, status: 'Qabul qilindi', statusType: 'qabul', suhbat: null, avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Dilnoza Karimova', age: 28, gender: 'Ayol', category: 'V', categoryColor: 'purple',
-    phone: '+998901234568', job: 'Buxgalter', location: 'Toshkent, Chilonzor',
-    salary: 6000000, status: 'Suhbatga belgilandi', statusType: 'suhbat',
-    suhbat: '20.01.2025 10:00', avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Bobur Rahimov', age: 30, gender: 'Erkak', category: 'A', categoryColor: 'amber',
-    phone: '+998901234569', job: 'Menejer', location: "Toshkent, Mirzo Ulug'bek",
-    salary: 10000000, status: '3 kunlik sinov', statusType: 'sinov', suhbat: null,
-    avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Jasur Normatov', age: 29, gender: 'Erkak', category: 'B', categoryColor: 'orange',
-    phone: '+998901234573', job: 'Haydovchi', location: 'Toshkent, Bektemir',
-    salary: 5500000, status: 'Suhbatga belgilandi', statusType: 'suhbat',
-    suhbat: '21.01.2025 09:00', avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Malika Azimova', age: 23, gender: 'Ayol', category: 'A', categoryColor: 'amber',
-    phone: '+998901234570', job: 'Dizayner', location: 'Toshkent, Sergeli',
-    salary: 5000000, status: 'Anketa olindi', statusType: 'anketa', suhbat: null,
-    avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Sardor Toshmatov', age: 27, gender: 'Erkak', category: 'A', categoryColor: 'amber',
-    phone: '+998901234571', job: 'Sotuvchi', location: 'Toshkent, Yakkasaroy',
-    salary: 4500000, status: 'Suhbatga bordi', statusType: 'suhbat-done',
-    suhbat: '18.01.2025 14:00', avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Nigora Sultonova', age: 26, gender: 'Ayol', category: 'V', categoryColor: 'purple',
-    phone: '+998901234572', job: 'Marketing mutaxassisi', location: 'Toshkent, Olmazor',
-    salary: 7000000, status: 'Ish qidirilmoqda', statusType: 'searching', suhbat: null,
-    avatarColor: 'bg-blue-500',
-  },
-  {
-    name: 'Feruza Abdullayeva', age: 24, gender: 'Ayol', category: 'B', categoryColor: 'orange',
-    phone: '+998901234574', job: 'HR menejer', location: 'Toshkent, Shayxontohur',
-    salary: 6500000, status: 'Anketa olindi', statusType: 'anketa', suhbat: null,
-    avatarColor: 'bg-blue-500',
-  },
-])
+const candidates = ref([])
+const anketaTypes = ref([])
+const loading = ref(false)
+
+const TYPE_COLORS = [
+  { bg: 'bg-amber-400 text-white', soft: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { bg: 'bg-purple-500 text-white', soft: 'bg-purple-50 text-purple-700 border-purple-200' },
+  { bg: 'bg-orange-400 text-white', soft: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { bg: 'bg-blue-500 text-white', soft: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { bg: 'bg-emerald-500 text-white', soft: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { bg: 'bg-rose-500 text-white', soft: 'bg-rose-50 text-rose-700 border-rose-200' },
+  { bg: 'bg-cyan-500 text-white', soft: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+  { bg: 'bg-indigo-500 text-white', soft: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+]
+const typeColorById = (id) => TYPE_COLORS[(Number(id) || 0) % TYPE_COLORS.length]
+
+const showModal = ref(false)
+const editData = ref(null)
+const showConfirmModal = ref(false)
+const itemToDelete = ref(null)
+
+const STATUS_LABELS = {
+  anketa_olindi: { label: 'Anketa olindi', type: 'anketa' },
+  suhbatga_belgilandi: { label: 'Suhbatga belgilandi', type: 'suhbat' },
+  suhbatga_bordi: { label: 'Suhbatga bordi', type: 'suhbat-done' },
+  suhbatga_bormadi: { label: 'Suhbatga bormadi', type: 'searching' },
+  '3_kunlik_sinov': { label: '3 kunlik sinov', type: 'sinov' },
+  qabul_qilindi: { label: 'Qabul qilindi', type: 'qabul' },
+  rad_etildi: { label: 'Rad etildi', type: 'searching' },
+}
+
+const GENDER_LABELS = { male: 'Erkak', female: 'Ayol' }
+
+const nameByLocale = (obj) => {
+  if (!obj) return ''
+  const lang = locale.value
+  return (lang === 'ru' ? obj.name_ru : lang === 'uzk' ? obj.name_uzk : obj.name_uz) || obj.name_uz || ''
+}
+
+const formatDate = (d) => {
+  if (!d) return ''
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`
+}
+
+const view = computed(() => {
+  return candidates.value.map((c) => {
+    const fullName = [c.surname, c.name, c.middle_name].filter(Boolean).join(' ') || c.name || '—'
+    const status = STATUS_LABELS[c.anketa_status] || { label: c.anketa_status || '—', type: 'anketa' }
+    const region = nameByLocale(c.region)
+    const district = nameByLocale(c.district)
+    const location = [region, district].filter(Boolean).join(', ')
+    const anketaTypeName = nameByLocale(c.anketa_type)
+    const colors = typeColorById(c.anketa_type_id)
+    return {
+      id: c.id,
+      raw: c,
+      name: fullName,
+      age: c.age ?? '',
+      gender: GENDER_LABELS[c.gender] || '—',
+      phone: c.phone_number || '',
+      job: nameByLocale(c.job_type) || '—',
+      location: location || '—',
+      salary: Number(c.expected_salary || 0),
+      status: status.label,
+      statusType: status.type,
+      suhbat: c.interview_datetime ? formatDate(c.interview_datetime) : null,
+      avatarColor: 'bg-blue-500',
+      anketaTypeId: c.anketa_type_id || null,
+      anketaTypeName: anketaTypeName || '—',
+      anketaTypeBadgeClass: colors.bg,
+      anketaTypeSoftClass: colors.soft,
+      anketaTypeInitial: anketaTypeName ? anketaTypeName.charAt(0).toUpperCase() : '—',
+    }
+  })
+})
 
 const filtered = computed(() => {
-  let list = candidates.value
+  let list = view.value
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
   }
+  if (anketaTypeFilter.value) {
+    list = list.filter((c) => c.anketaTypeId === anketaTypeFilter.value)
+  }
   return list
 })
 
-const formatMoney = (v) => v.toLocaleString('fr-FR').replace(/\s/g, ',')
+const formatMoney = (v) => {
+  if (!v) return '0'
+  return Number(v).toLocaleString('fr-FR').replace(/\s/g, ',')
+}
 
 const statusBadge = (type) => {
   const map = {
@@ -88,14 +130,62 @@ const statusBadge = (type) => {
   return map[type] || 'bg-slate-100 text-slate-600 border-slate-200'
 }
 
-const categoryBg = (color) => {
-  const map = {
-    amber: 'bg-amber-400 text-white',
-    purple: 'bg-purple-500 text-white',
-    orange: 'bg-orange-400 text-white',
+const loadAnketaTypes = async () => {
+  try {
+    const data = await anketaTypesService.all()
+    anketaTypes.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Anketa types load error', e)
+    anketaTypes.value = []
   }
-  return map[color] || 'bg-slate-400 text-white'
 }
+
+const loadAnketas = async () => {
+  loading.value = true
+  try {
+    const data = await anketaService.all()
+    candidates.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Anketa load error', e)
+    candidates.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const openForm = (data = null) => {
+  editData.value = data
+  showModal.value = true
+}
+const closeForm = () => {
+  showModal.value = false
+  editData.value = null
+}
+
+const openEdit = (item) => openForm(item.raw)
+
+const promptDelete = (item) => {
+  itemToDelete.value = item
+  showConfirmModal.value = true
+}
+
+const handleConfirmDelete = async () => {
+  if (!itemToDelete.value) return
+  try {
+    await anketaService.delete(itemToDelete.value.id)
+    showConfirmModal.value = false
+    itemToDelete.value = null
+    await loadAnketas()
+  } catch (e) {
+    console.error('Anketa delete error', e)
+    showConfirmModal.value = false
+  }
+}
+
+onMounted(() => {
+  loadAnketaTypes()
+  loadAnketas()
+})
 </script>
 
 <template>
@@ -167,7 +257,7 @@ const categoryBg = (color) => {
       </div>
     </div>
 
-    <!-- Filter bar -->
+    <!-- Filter bar + Add button -->
     <div class="bg-white rounded-xl border border-slate-100 p-3 flex flex-col sm:flex-row gap-3">
       <div class="relative w-full sm:w-[240px]">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -203,13 +293,13 @@ const categoryBg = (color) => {
           class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-[13px] placeholder-slate-400 focus:outline-none focus:border-blue-400" />
       </div>
 
-      <div class="relative w-full sm:w-[160px]">
-        <select v-model="categoryFilter"
+      <div class="relative w-full sm:w-[200px]">
+        <select v-model="anketaTypeFilter"
           class="w-full pl-3 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 appearance-none focus:outline-none focus:border-blue-400">
-          <option>Barchasi</option>
-          <option>Kategoriya A</option>
-          <option>Kategoriya B</option>
-          <option>Kategoriya V</option>
+          <option :value="null">Barcha anketa turlari</option>
+          <option v-for="t in anketaTypes" :key="t.id" :value="t.id">
+            {{ nameByLocale(t) }}
+          </option>
         </select>
         <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
           <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -217,14 +307,40 @@ const categoryBg = (color) => {
           </svg>
         </div>
       </div>
+
+      <!-- Add Anketa button -->
+      <button type="button" @click="openForm()"
+        class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold whitespace-nowrap shadow-sm transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Anketa qo'shish
+      </button>
+    </div>
+
+    <!-- Empty state -->
+    <div v-if="!loading && filtered.length === 0"
+      class="bg-white rounded-xl border border-slate-100 py-16 px-4 flex flex-col items-center gap-3 text-center">
+      <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+        <svg class="w-8 h-8 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+      </div>
+      <p class="text-slate-500 text-sm">Hozircha anketalar yo'q</p>
+      <button type="button" @click="openForm()"
+        class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold transition">
+        Birinchi anketani qo'shish
+      </button>
     </div>
 
     <!-- Cards grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <article v-for="(c, i) in filtered" :key="i"
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <article v-for="c in filtered" :key="c.id"
         class="bg-white rounded-xl border border-slate-100 p-3 relative hover:shadow-md transition space-y-2">
 
-        <!-- Top row: stars + download button -->
         <div class="flex items-center justify-between">
           <div class="flex gap-0.5">
             <svg v-for="n in 3" :key="n" class="w-3 h-3 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
@@ -232,17 +348,26 @@ const categoryBg = (color) => {
                 points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26" />
             </svg>
           </div>
-          <button class="w-7 h-7 rounded-lg bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
+          <div class="flex items-center gap-1">
+            <button @click="openEdit(c)" title="Tahrirlash"
+              class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button @click="promptDelete(c)" title="O'chirish"
+              class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <!-- Avatar + Name + Category -->
         <div class="flex items-start gap-2">
           <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0"
             :class="c.avatarColor">
@@ -250,18 +375,19 @@ const categoryBg = (color) => {
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-[14px] font-bold text-slate-800 truncate">{{ c.name }}</p>
-            <p class="text-[11px] text-slate-500">{{ c.age }} yosh</p>
+            <p class="text-[11px] text-slate-500">{{ c.age || '—' }} yosh</p>
           </div>
-          <div class="flex flex-col items-end gap-0.5">
-            <span class="text-[9px] text-slate-400">Kategoriya</span>
-            <span class="w-7 h-7 rounded-md flex items-center justify-center text-[13px] font-bold"
-              :class="categoryBg(c.categoryColor)">
-              {{ c.category }}
+          <div class="flex flex-col items-end gap-0.5 max-w-[110px]">
+            <span class="text-[9px] text-slate-400">Anketa turi</span>
+            <span
+              class="px-1.5 py-0.5 rounded-md text-[10px] font-semibold border truncate max-w-full"
+              :class="c.anketaTypeSoftClass"
+              :title="c.anketaTypeName">
+              {{ c.anketaTypeName }}
             </span>
           </div>
         </div>
 
-        <!-- Gender -->
         <div class="flex items-center gap-1.5 text-[12px] text-slate-600">
           <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -271,7 +397,6 @@ const categoryBg = (color) => {
           <span>{{ c.gender }}</span>
         </div>
 
-        <!-- Phone + Anketani ko'rish -->
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5 text-[12px] text-slate-600 min-w-0">
             <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -281,7 +406,7 @@ const categoryBg = (color) => {
             </svg>
             <span class="truncate">{{ c.phone }}</span>
           </div>
-          <button
+          <button @click="openEdit(c)"
             class="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 whitespace-nowrap">
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -291,7 +416,6 @@ const categoryBg = (color) => {
           </button>
         </div>
 
-        <!-- Job -->
         <div class="flex items-center gap-1.5 text-[12px] text-slate-600">
           <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -301,7 +425,6 @@ const categoryBg = (color) => {
           <span>{{ c.job }}</span>
         </div>
 
-        <!-- Location + send icon -->
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5 text-[12px] text-slate-600 min-w-0">
             <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -311,16 +434,8 @@ const categoryBg = (color) => {
             </svg>
             <span class="truncate">{{ c.location }}</span>
           </div>
-          <button class="text-blue-500 hover:text-blue-600 shrink-0">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
         </div>
 
-        <!-- Suhbat row + salary -->
         <div v-if="c.suhbat" class="flex items-center justify-between gap-2 text-[12px] text-slate-600">
           <div class="flex items-center gap-1.5 min-w-0">
             <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -336,7 +451,6 @@ const categoryBg = (color) => {
           <span class="text-[13px] font-bold text-slate-800">{{ formatMoney(c.salary) }} so'm</span>
         </div>
 
-        <!-- Footer: status + biriktirish button -->
         <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
           <span class="text-[11px] font-semibold px-2 py-1 rounded-md border" :class="statusBadge(c.statusType)">
             {{ c.status }}
@@ -348,5 +462,51 @@ const categoryBg = (color) => {
         </div>
       </article>
     </div>
+
+    <!-- Add / Edit Modal -->
+    <Transition name="modal">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeForm"></div>
+
+        <div class="modal-content relative bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+          <div class="px-4 sm:px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900/40 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">
+              {{ editData ? 'Nomzodni tahrirlash' : "Anketa qo'shish" }}
+            </h3>
+            <button class="text-gray-400 dark:text-white hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
+              @click="closeForm">
+              <closeIcon class="w-6 h-6" />
+            </button>
+          </div>
+          <div class="p-4 sm:p-6 overflow-y-auto">
+            <Form :edit-data="editData" @close="closeForm" @saved="loadAnketas" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <ConfirmModal v-if="showConfirmModal" :show="showConfirmModal" title="Anketani o'chirish"
+      :message="`${itemToDelete?.name || ''} anketasini o'chirishni tasdiqlaysizmi?`" confirm-text="Ha, o'chirish"
+      cancel-text="Bekor qilish" type="danger" :duration="5" @confirm="handleConfirmDelete"
+      @cancel="showConfirmModal = false" />
   </div>
 </template>
+
+<style scoped>
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform 0.25s ease;
+}
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: translateY(20px);
+}
+</style>

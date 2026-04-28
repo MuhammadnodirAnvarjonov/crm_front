@@ -629,5 +629,20 @@
     "Hikvision ID": "Hikvision ID",
     "confirm_delete_user": "foydalanuvchisini o'chirishni tasdiqlaysizmi?",
     "confirm_delete_role": "rolini o'chirishni tasdiqlaysizmi?",
-    "yes_delete": "Ha, o'chirish"
+    "yes_delete": "Ha, o'chirish",
+
+    "first_name": "Ism",
+    "surname": "Familiya",
+    "middle_name": "Otasining ismi",
+    "anketa": "Anketa",
+    "anketas": "Anketalar",
+    "anketa_type": "Anketa turi",
+    "anketa_types": "Anketa turlari",
+    "job": "Kasb",
+    "experience_year": "Tajriba (yil)",
+    "expected_salary": "Kutilayotgan maosh",
+    "education": "Ma'lumot",
+    "interview_datetime": "Suhbat sanasi",
+    "add_anketa": "Anketa qo'shish",
+    "edit_anketa": "Nomzodni tahrirlash"
 }

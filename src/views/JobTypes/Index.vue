@@ -16,6 +16,11 @@
             <addIcon />
           </template>
         </BaseButton>
+        <BaseButton @click="openMoreForm()" label="Ko'proq qo'shish" status="primary">
+          <template #icon>
+            <addIcon />
+          </template>
+        </BaseButton>
         <UpdateButton @click="getItems" />
       </div>
     </div>
@@ -62,6 +67,28 @@
       </div>
     </Transition>
 
+    <!-- Bulk Add Modal -->
+    <Transition name="modal">
+      <div v-if="showMoreModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" @click="closeMoreForm"></div>
+
+        <div class="modal-content relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+          <div class="px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900/40 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">
+              Ko'proq qo'shish
+            </h3>
+            <button class="text-gray-400 dark:text-white hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
+              @click="closeMoreForm">
+              <closeIcon class="w-6 h-6" />
+            </button>
+          </div>
+          <div class="p-6 overflow-y-auto">
+            <MoreForm @close="closeMoreForm" @saved="getItems" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Confirm Delete -->
     <ConfirmModal v-if="showConfirmModal" :show="showConfirmModal" :title="$t('delete')"
       :message="`${itemToDelete?.name_uz} ni o‘chirishni tasdiqlaysizmi?`" confirm-text="Ha, o‘chirish"
@@ -75,6 +102,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ResponsiveTable from "@/components/common/ResponsiveTable.vue";
 import Form from "./Form.vue";
+import MoreForm from "./MoreForm.vue";
 import ConfirmModal from "@/components/ConfirmModal.vue";
 import jobTypeService from "@/services/jobTypes.service";
 import { editIcon, trashIcon, addIcon, closeIcon } from "@/components/icons/icon-temp";
@@ -89,6 +117,8 @@ const searchedOnce = ref(false);
 
 const showModal = ref(false);
 const editData = ref(null);
+
+const showMoreModal = ref(false);
 
 const showConfirmModal = ref(false);
 const itemToDelete = ref(null);
@@ -142,6 +172,9 @@ watch(searchQuery, (val) => {
 
 const openForm = (data = null) => { editData.value = data; showModal.value = true; };
 const closeForm = () => { showModal.value = false; editData.value = null; };
+
+const openMoreForm = () => { showMoreModal.value = true; };
+const closeMoreForm = () => { showMoreModal.value = false; };
 
 const promptDelete = (item) => {
   itemToDelete.value = item;

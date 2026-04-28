@@ -629,5 +629,20 @@
     "Hikvision ID": "Hikvision ID",
     "confirm_delete_user": "пользователя — подтвердите удаление?",
     "confirm_delete_role": "роли — подтвердите удаление?",
-    "yes_delete": "Да, удалить"
+    "yes_delete": "Да, удалить",
+
+    "first_name": "Имя",
+    "surname": "Фамилия",
+    "middle_name": "Отчество",
+    "anketa": "Анкета",
+    "anketas": "Анкеты",
+    "anketa_type": "Тип анкеты",
+    "anketa_types": "Типы анкет",
+    "job": "Профессия",
+    "experience_year": "Опыт (лет)",
+    "expected_salary": "Ожидаемая зарплата",
+    "education": "Образование",
+    "interview_datetime": "Дата собеседования",
+    "add_anketa": "Добавить анкету",
+    "edit_anketa": "Редактировать кандидата"
 }
