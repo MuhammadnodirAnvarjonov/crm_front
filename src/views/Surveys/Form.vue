@@ -1,5 +1,22 @@
 <template>
   <form @submit.prevent="save" class="flex flex-col">
+    <!-- Clone mode banner -->
+    <div v-if="mode === 'clone'"
+      class="mb-4 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-200 flex items-start gap-2">
+      <svg class="w-4 h-4 text-blue-600 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+      <div class="text-[12px] text-blue-700 leading-snug">
+        <p class="font-semibold">Anketadan nusxa olindi.</p>
+        <p>Iltimos, quyidagi maydonlarni qayta to'ldiring:
+          <span class="font-semibold">Ism, Familiya, Otasining ismi, Telefon, Tug'ilgan sana</span>.
+        </p>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Ism -->
       <BaseInput :label="$t('first_name')" v-model="form.name" required size="md" placeholder="Ism" />
@@ -176,7 +193,10 @@ import regionsService from '@/services/regions.service'
 const { locale } = useI18n()
 
 const emit = defineEmits(['saved', 'close'])
-const props = defineProps({ editData: Object })
+const props = defineProps({
+  editData: Object,
+  mode: { type: String, default: 'create' }, // 'create' | 'edit' | 'clone'
+})
 
 const saving = ref(false)
 

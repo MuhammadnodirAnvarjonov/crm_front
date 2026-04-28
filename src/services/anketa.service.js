@@ -9,4 +9,6 @@ export default {
   update: (id, data) => http.patch(`${BASE}/update/${id}`, data),
   delete: (id) => http.delete(`${BASE}/delete/${id}`),
   statuses: () => http.get(`${BASE}/statuses`),
+  addToBlacklist: (id, reason) => http.post(`${BASE}/blacklist/${id}`, { reason }),
+  removeFromBlacklist: (id) => http.post(`${BASE}/unblacklist/${id}`),
 }

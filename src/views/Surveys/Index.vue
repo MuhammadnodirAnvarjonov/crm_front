@@ -1,10 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Form from './Form.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import anketaService from '@/services/anketa.service'
 import anketaTypesService from '@/services/anketaTypes.service'
+import jobTypesService from '@/services/jobTypes.service'
+import regionsService from '@/services/regions.service'
+import BaseSelect from '@/components/form/BaseSelect.vue'
 import { closeIcon } from '@/components/icons/icon-temp'
 
 const { locale } = useI18n()
@@ -18,13 +21,22 @@ const statCards = [
   { label: 'Agent', today: 9, total: 16, icon: 'building', iconBg: 'bg-blue-50', iconColor: 'text-blue-500' },
 ]
 
-const dateFilter = ref('')
+const dateFilter = ref('week')
 const searchQuery = ref('')
 const anketaTypeFilter = ref(null)
+const jobTypeFilter = ref(null)
+const regionFilter = ref(null)
+const districtFilter = ref(null)
+const genderFilter = ref(null)
+const statusFilter = ref(null)
 
 const candidates = ref([])
 const anketaTypes = ref([])
+const jobTypes = ref([])
+const regions = ref([])
 const loading = ref(false)
+
+watch(regionFilter, () => { districtFilter.value = null })
 
 const TYPE_COLORS = [
   { bg: 'bg-amber-400 text-white', soft: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -42,6 +54,11 @@ const showModal = ref(false)
 const editData = ref(null)
 const showConfirmModal = ref(false)
 const itemToDelete = ref(null)
+
+const showBlacklistModal = ref(false)
+const blacklistTarget = ref(null)
+const blacklistReason = ref('')
+const blacklistSaving = ref(false)
 
 const STATUS_LABELS = {
   anketa_olindi: { label: 'Anketa olindi', type: 'anketa' },
@@ -97,8 +114,73 @@ const view = computed(() => {
       anketaTypeBadgeClass: colors.bg,
       anketaTypeSoftClass: colors.soft,
       anketaTypeInitial: anketaTypeName ? anketaTypeName.charAt(0).toUpperCase() : '—',
+      jobTypeId: c.job_type_id || null,
+      regionId: c.region_id || null,
+      districtId: c.district_id || null,
+      genderRaw: c.gender || null,
+      anketaStatusRaw: c.anketa_status || null,
+      isBlacklisted: !!c.is_blacklisted,
+      blacklistReason: c.blacklist_reason || '',
+      createdAtMs: c.createdAt ? new Date(c.createdAt).getTime() : 0,
     }
   })
+})
+
+const dateRangeMs = (key) => {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (key === 'today') return [start.getTime(), start.getTime() + 86400000]
+  if (key === 'week') {
+    const day = start.getDay() || 7  // Du=1 ... Ya=7
+    const monday = new Date(start)
+    monday.setDate(start.getDate() - (day - 1))
+    const nextMonday = new Date(monday)
+    nextMonday.setDate(monday.getDate() + 7)
+    return [monday.getTime(), nextMonday.getTime()]
+  }
+  if (key === 'month') {
+    const first = new Date(now.getFullYear(), now.getMonth(), 1)
+    const nextFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    return [first.getTime(), nextFirst.getTime()]
+  }
+  return null
+}
+
+const dateFilterOptions = [
+  { value: '', name: 'Barcha vaqt' },
+  { value: 'today', name: 'Bugun' },
+  { value: 'week', name: 'Shu hafta' },
+  { value: 'month', name: 'Shu oy' },
+]
+
+const genderOptions = [
+  { value: 'male', name: 'Erkak' },
+  { value: 'female', name: 'Ayol' },
+]
+
+const statusOptions = [
+  { value: 'anketa_olindi', name: 'Anketa olindi' },
+  { value: 'suhbatga_belgilandi', name: 'Suhbatga belgilandi' },
+  { value: 'suhbatga_bordi', name: 'Suhbatga bordi' },
+  { value: 'suhbatga_bormadi', name: 'Suhbatga bormadi' },
+  { value: '3_kunlik_sinov', name: '3 kunlik sinov' },
+  { value: 'qabul_qilindi', name: 'Qabul qilindi' },
+  { value: 'rad_etildi', name: 'Rad etildi' },
+]
+
+const anketaTypeOptions = computed(() =>
+  anketaTypes.value.map((t) => ({ id: t.id, name: nameByLocale(t) }))
+)
+const jobTypeOptions = computed(() =>
+  jobTypes.value.map((t) => ({ id: t.id, name: nameByLocale(t) }))
+)
+const regionOptions = computed(() =>
+  regions.value.map((r) => ({ id: r.id, name: nameByLocale(r) }))
+)
+const districtOptions = computed(() => {
+  if (!regionFilter.value) return []
+  const r = regions.value.find((x) => x.id === regionFilter.value)
+  return (r?.districts || []).map((d) => ({ id: d.id, name: nameByLocale(d) }))
 })
 
 const filtered = computed(() => {
@@ -107,11 +189,31 @@ const filtered = computed(() => {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q))
   }
-  if (anketaTypeFilter.value) {
-    list = list.filter((c) => c.anketaTypeId === anketaTypeFilter.value)
+  if (anketaTypeFilter.value) list = list.filter((c) => c.anketaTypeId === anketaTypeFilter.value)
+  if (jobTypeFilter.value) list = list.filter((c) => c.jobTypeId === jobTypeFilter.value)
+  if (regionFilter.value) list = list.filter((c) => c.regionId === regionFilter.value)
+  if (districtFilter.value) list = list.filter((c) => c.districtId === districtFilter.value)
+  if (genderFilter.value) list = list.filter((c) => c.genderRaw === genderFilter.value)
+  if (statusFilter.value) list = list.filter((c) => c.anketaStatusRaw === statusFilter.value)
+
+  const range = dateRangeMs(dateFilter.value)
+  if (range) {
+    const [from, to] = range
+    list = list.filter((c) => c.createdAtMs >= from && c.createdAtMs < to)
   }
   return list
 })
+
+const resetFilters = () => {
+  searchQuery.value = ''
+  dateFilter.value = ''
+  anketaTypeFilter.value = null
+  jobTypeFilter.value = null
+  regionFilter.value = null
+  districtFilter.value = null
+  genderFilter.value = null
+  statusFilter.value = null
+}
 
 const formatMoney = (v) => {
   if (!v) return '0'
@@ -130,13 +232,18 @@ const statusBadge = (type) => {
   return map[type] || 'bg-slate-100 text-slate-600 border-slate-200'
 }
 
-const loadAnketaTypes = async () => {
+const loadLookups = async () => {
   try {
-    const data = await anketaTypesService.all()
-    anketaTypes.value = Array.isArray(data) ? data : []
+    const [at, jt, rg] = await Promise.all([
+      anketaTypesService.all(),
+      jobTypesService.all(),
+      regionsService.all({}),
+    ])
+    anketaTypes.value = Array.isArray(at) ? at : []
+    jobTypes.value = Array.isArray(jt) ? jt : []
+    regions.value = Array.isArray(rg) ? rg : []
   } catch (e) {
-    console.error('Anketa types load error', e)
-    anketaTypes.value = []
+    console.error('Lookup load error', e)
   }
 }
 
@@ -153,20 +260,74 @@ const loadAnketas = async () => {
   }
 }
 
+const formMode = ref('create') // 'create' | 'edit' | 'clone'
+
 const openForm = (data = null) => {
   editData.value = data
+  formMode.value = data?.id ? 'edit' : 'create'
   showModal.value = true
 }
 const closeForm = () => {
   showModal.value = false
   editData.value = null
+  formMode.value = 'create'
 }
 
 const openEdit = (item) => openForm(item.raw)
 
+const openClone = (item) => {
+  const src = item.raw || {}
+  // Identity maydonlari tozalanadi — qaytadan kiritilishi kerak
+  editData.value = {
+    ...src,
+    id: undefined,
+    name: '',
+    surname: '',
+    middle_name: '',
+    phone_number: '',
+    birthday: null,
+  }
+  formMode.value = 'clone'
+  showModal.value = true
+}
+
 const promptDelete = (item) => {
   itemToDelete.value = item
   showConfirmModal.value = true
+}
+
+const openBlacklist = (item) => {
+  blacklistTarget.value = item
+  blacklistReason.value = ''
+  showBlacklistModal.value = true
+}
+const closeBlacklist = () => {
+  showBlacklistModal.value = false
+  blacklistTarget.value = null
+  blacklistReason.value = ''
+}
+const submitBlacklist = async () => {
+  if (!blacklistTarget.value || blacklistSaving.value) return
+  const reason = blacklistReason.value.trim()
+  if (!reason) return
+  blacklistSaving.value = true
+  try {
+    await anketaService.addToBlacklist(blacklistTarget.value.id, reason)
+    closeBlacklist()
+    await loadAnketas()
+  } catch (e) {
+    console.error('Blacklist add error', e)
+  } finally {
+    blacklistSaving.value = false
+  }
+}
+const removeFromBlacklist = async (item) => {
+  try {
+    await anketaService.removeFromBlacklist(item.id)
+    await loadAnketas()
+  } catch (e) {
+    console.error('Blacklist remove error', e)
+  }
 }
 
 const handleConfirmDelete = async () => {
@@ -183,7 +344,7 @@ const handleConfirmDelete = async () => {
 }
 
 onMounted(() => {
-  loadAnketaTypes()
+  loadLookups()
   loadAnketas()
 })
 </script>
@@ -258,66 +419,59 @@ onMounted(() => {
     </div>
 
     <!-- Filter bar + Add button -->
-    <div class="bg-white rounded-xl border border-slate-100 p-3 flex flex-col sm:flex-row gap-3">
-      <div class="relative w-full sm:w-[240px]">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+    <div class="bg-white rounded-xl border border-slate-100 p-3 space-y-3">
+      <!-- Top row: search + add -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </div>
+          <input v-model="searchQuery" placeholder="Ism yoki telefon raqamini qidirish..."
+            class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-[13px] placeholder-slate-400 focus:outline-none focus:border-blue-400" />
+        </div>
+
+        <button type="button" @click="openForm()"
+          class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold whitespace-nowrap shadow-sm transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-        </div>
-        <select v-model="dateFilter"
-          class="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 appearance-none focus:outline-none focus:border-blue-400">
-          <option value="">Sana bo'yicha filtrlash</option>
-          <option value="today">Bugun</option>
-          <option value="week">Shu hafta</option>
-          <option value="month">Shu oy</option>
-        </select>
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
+          Anketa qo'shish
+        </button>
       </div>
 
-      <div class="relative flex-1">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      <!-- Filter selects -->
+      <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">
+        <BaseSelect v-model="dateFilter" :options="dateFilterOptions" labelKey="name" valueKey="value"
+          placeholder="Vaqt oraliği" :clearable="false" size="sm" />
+        <BaseSelect v-model="anketaTypeFilter" :options="anketaTypeOptions" placeholder="Anketa turi" size="sm" />
+        <BaseSelect v-model="jobTypeFilter" :options="jobTypeOptions" placeholder="Kasb" size="sm" />
+        <BaseSelect v-model="regionFilter" :options="regionOptions" placeholder="Viloyat" size="sm" />
+        <BaseSelect v-model="districtFilter" :options="districtOptions" placeholder="Tuman" size="sm"
+          :disabled="!regionFilter" />
+        <BaseSelect v-model="genderFilter" :options="genderOptions" labelKey="name" valueKey="value"
+          placeholder="Jinsi" size="sm" />
+        <BaseSelect v-model="statusFilter" :options="statusOptions" labelKey="name" valueKey="value"
+          placeholder="Status" size="sm" />
+      </div>
+
+      <!-- Reset -->
+      <div class="flex justify-end">
+        <button type="button" @click="resetFilters"
+          class="text-[12px] text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <polyline points="1 4 1 10 7 10" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
           </svg>
-        </div>
-        <input v-model="searchQuery" placeholder="Filtrlash"
-          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-[13px] placeholder-slate-400 focus:outline-none focus:border-blue-400" />
+          Filterni tozalash
+        </button>
       </div>
-
-      <div class="relative w-full sm:w-[200px]">
-        <select v-model="anketaTypeFilter"
-          class="w-full pl-3 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 appearance-none focus:outline-none focus:border-blue-400">
-          <option :value="null">Barcha anketa turlari</option>
-          <option v-for="t in anketaTypes" :key="t.id" :value="t.id">
-            {{ nameByLocale(t) }}
-          </option>
-        </select>
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </div>
-
-      <!-- Add Anketa button -->
-      <button type="button" @click="openForm()"
-        class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold whitespace-nowrap shadow-sm transition">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Anketa qo'shish
-      </button>
     </div>
 
     <!-- Empty state -->
@@ -339,7 +493,8 @@ onMounted(() => {
     <!-- Cards grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
       <article v-for="c in filtered" :key="c.id"
-        class="bg-white rounded-xl border border-slate-100 p-3 relative hover:shadow-md transition space-y-2">
+        class="bg-white rounded-xl p-3 relative hover:shadow-md transition space-y-2"
+        :class="c.isBlacklisted ? 'border-2 border-red-400' : 'border border-slate-100'">
 
         <div class="flex items-center justify-between">
           <div class="flex gap-0.5">
@@ -349,6 +504,29 @@ onMounted(() => {
             </svg>
           </div>
           <div class="flex items-center gap-1">
+            <button @click="openClone(c)" title="Nusxa olish"
+              class="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            </button>
+            <button v-if="!c.isBlacklisted" @click="openBlacklist(c)" title="Qora ro'yxatga qo'shish"
+              class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+              </svg>
+            </button>
+            <button v-else @click="removeFromBlacklist(c)" title="Qora ro'yxatdan chiqarish"
+              class="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
             <button @click="openEdit(c)" title="Tahrirlash"
               class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 flex items-center justify-center">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -374,7 +552,17 @@ onMounted(() => {
             {{ c.name.charAt(0) }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[14px] font-bold text-slate-800 truncate">{{ c.name }}</p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <p class="text-[14px] font-bold text-slate-800 truncate">{{ c.name }}</p>
+              <span v-if="c.isBlacklisted" :title="c.blacklistReason"
+                class="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-500 text-white shrink-0">
+                <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="9" />
+                  <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+                </svg>
+                Q.r
+              </span>
+            </div>
             <p class="text-[11px] text-slate-500">{{ c.age || '—' }} yosh</p>
           </div>
           <div class="flex flex-col items-end gap-0.5 max-w-[110px]">
@@ -471,7 +659,7 @@ onMounted(() => {
         <div class="modal-content relative bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl flex flex-col max-h-[95vh] sm:max-h-[90vh]">
           <div class="px-4 sm:px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900/40 rounded-t-2xl">
             <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">
-              {{ editData ? 'Nomzodni tahrirlash' : "Anketa qo'shish" }}
+              {{ formMode === 'edit' ? 'Nomzodni tahrirlash' : formMode === 'clone' ? 'Anketadan nusxa olish' : "Anketa qo'shish" }}
             </h3>
             <button class="text-gray-400 dark:text-white hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30"
               @click="closeForm">
@@ -479,7 +667,7 @@ onMounted(() => {
             </button>
           </div>
           <div class="p-4 sm:p-6 overflow-y-auto">
-            <Form :edit-data="editData" @close="closeForm" @saved="loadAnketas" />
+            <Form :edit-data="editData" :mode="formMode" @close="closeForm" @saved="loadAnketas" />
           </div>
         </div>
       </div>
@@ -489,6 +677,45 @@ onMounted(() => {
       :message="`${itemToDelete?.name || ''} anketasini o'chirishni tasdiqlaysizmi?`" confirm-text="Ha, o'chirish"
       cancel-text="Bekor qilish" type="danger" :duration="5" @confirm="handleConfirmDelete"
       @cancel="showConfirmModal = false" />
+
+    <!-- Blacklist Modal -->
+    <Transition name="modal">
+      <div v-if="showBlacklistModal" class="fixed inset-0 z-[55] flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeBlacklist"></div>
+        <div class="modal-content relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md flex flex-col">
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <div class="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="9" />
+                <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-bold text-gray-800">Qora ro'yxatga qo'shish</h3>
+              <p class="text-[12px] text-slate-500 truncate">{{ blacklistTarget?.name }}</p>
+            </div>
+          </div>
+          <form @submit.prevent="submitBlacklist" class="px-5 py-4 space-y-3">
+            <label class="block">
+              <span class="text-[12px] font-semibold text-slate-700">Sababi <span class="text-red-500">*</span></span>
+              <textarea v-model="blacklistReason" rows="3" required
+                placeholder="Nima uchun qora ro'yxatga qo'shilyapti?"
+                class="mt-1 w-full px-3 py-2 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-500/20 resize-none"></textarea>
+            </label>
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button" @click="closeBlacklist"
+                class="px-4 py-2 rounded-lg text-[13px] font-medium text-slate-700 border border-slate-200 hover:bg-slate-50">
+                Bekor qilish
+              </button>
+              <button type="submit" :disabled="!blacklistReason.trim() || blacklistSaving"
+                class="px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ blacklistSaving ? 'Saqlanmoqda...' : "Qora ro'yxatga qo'shish" }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
