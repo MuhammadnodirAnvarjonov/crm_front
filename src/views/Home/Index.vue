@@ -1,10 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
+import statsService from '@/services/stats.service'
 
 const userStore = useUserStore()
-
-const userName = computed(() => userStore.user?.user_name || 'Gulsanamxon')
+const userName = computed(() => userStore.user?.user_name || '—')
 
 const today = computed(() => {
   const days = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
@@ -13,330 +13,146 @@ const today = computed(() => {
   return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 })
 
-// KPI cards
-const kpiCards = [
-  { label: 'BUGUNGI NOMZODLAR', value: 8, sub: 'Jami: 8', iconColor: 'text-slate-400', icon: 'users' },
-  { label: 'BUGUNGI VAZIFALAR', value: 1, sub: 'Jami: 11', iconColor: 'text-slate-400', icon: 'calendar' },
-  { label: 'PREMIUM FAOL', value: 7, sub: 'Jami: 8', iconColor: 'text-amber-400', icon: 'star' },
-  { label: '3 KUNLIK SINOV', value: 1, sub: 'Monitoring kerak', iconColor: 'text-slate-400', icon: 'clock' },
-]
+const data = ref(null)
+const loading = ref(false)
 
-// Bar chart data (Yan-Iyun)
-const barData = [
-  { label: 'Yan', value: 11000000 },
-  { label: 'Fev', value: 14500000 },
-  { label: 'Mar', value: 17500000 },
-  { label: 'Apr', value: 15500000 },
-  { label: 'May', value: 21500000 },
-  { label: 'Iyun', value: 24000000 },
-]
-const maxValue = 26000000
-const yAxisLabels = [0, 6500000, 13000000, 19500000, 26000000].reverse()
+const loadStats = async () => {
+  loading.value = true
+  try { data.value = await statsService.dashboard() }
+  catch (e) { console.error(e); data.value = null }
+  finally { loading.value = false }
+}
 
-// Monthly results
-const monthlyResults = [
-  { label: 'Anketalar', value: 0, highlight: false },
-  { label: 'Suhbatlar', value: 0, highlight: false },
-  { label: 'Qabul qilingan', value: 0, highlight: true },
-  { label: 'Jami ball', value: 0, highlight: false },
-]
+const kpi = computed(() => data.value?.kpi || {})
+const donutCounts = computed(() => data.value?.donut || { anketa: 0, suhbat: 0, sinov: 0, qabul: 0 })
+const monthGroup = computed(() => data.value?.this_month || { anketa: 0, suhbat: 0, sinov: 0, qabul: 0 })
 
-// Donut chart — Anketa: 2, Suhbat: 2, Sinov: 1, Qabul: 2
-const donut = [
-  { label: 'Anketa', value: 2, color: '#3b82f6' },
-  { label: 'Suhbat', value: 2, color: '#f59e0b' },
-  { label: 'Sinov', value: 1, color: '#8b5cf6' },
-  { label: 'Qabul', value: 2, color: '#10b981' },
-]
-const donutTotal = donut.reduce((s, d) => s + d.value, 0)
+const kpiCards = computed(() => [
+  { label: 'BUGUNGI NOMZODLAR', value: kpi.value.today_anketas || 0, sub: `Jami: ${kpi.value.total_anketas || 0}`, color: 'blue' },
+  { label: 'BUGUNGI VAZIFALAR', value: kpi.value.today_tasks || 0, sub: `Jami: ${kpi.value.total_tasks || 0}`, color: 'amber' },
+  { label: 'PREMIUM FAOL', value: kpi.value.premium_active || 0, sub: `Jami: ${kpi.value.total_employers || 0}`, color: 'purple' },
+  { label: '3 KUNLIK SINOV', value: kpi.value.trial_anketas || 0, sub: 'Monitoring kerak', color: 'rose' },
+])
+
+// Bar chart — monthly revenue
+const MONTH_NAMES = ['Yan','Fev','Mar','Apr','May','Iyun','Iyul','Avg','Sen','Okt','Noy','Dek']
+const barData = computed(() => {
+  const rows = data.value?.monthly_revenue || []
+  return rows.map((r) => ({ label: MONTH_NAMES[r.month - 1], value: r.value }))
+})
+const maxBar = computed(() => Math.max(1, ...barData.value.map((b) => b.value)))
+const yAxisLabels = computed(() => {
+  const m = maxBar.value
+  return [m, Math.round(m * 0.75), Math.round(m * 0.5), Math.round(m * 0.25), 0]
+})
+
+const formatMoney = (v) => Number(v || 0).toLocaleString('fr-FR').replace(/\s/g, ',')
+
+// Donut
+const donut = computed(() => [
+  { label: 'Anketa', value: donutCounts.value.anketa || 0, color: '#3b82f6' },
+  { label: 'Suhbat', value: donutCounts.value.suhbat || 0, color: '#f59e0b' },
+  { label: 'Sinov',  value: donutCounts.value.sinov  || 0, color: '#8b5cf6' },
+  { label: 'Qabul',  value: donutCounts.value.qabul  || 0, color: '#10b981' },
+])
+const donutTotal = computed(() => donut.value.reduce((s, d) => s + d.value, 0))
 const donutSegments = computed(() => {
-  const circumference = 2 * Math.PI * 55
+  const c = 2 * Math.PI * 55
+  if (!donutTotal.value) return []
   let offset = 0
-  return donut.map((d) => {
-    const length = (d.value / donutTotal) * circumference
-    const seg = { ...d, length, offset, circumference }
+  return donut.value.map((d) => {
+    const length = (d.value / donutTotal.value) * c
+    const seg = { ...d, length, offset, circumference: c }
     offset += length
     return seg
   })
 })
 
-// Today's tasks
-const todayTasks = [
-  {
-    title: 'Bir kunda 100ta mijoz',
-    desc: 'Biz bugun 100ta mijozni ish bilan ta\'minlashimiz kerak',
-    time: '09:04',
-    tag: 'Premium',
-    priority: 'yuqori',
-  },
-]
+const monthlyResults = computed(() => [
+  { label: 'Anketalar', value: monthGroup.value.anketa, highlight: false },
+  { label: 'Suhbatlar', value: monthGroup.value.suhbat, highlight: false },
+  { label: 'Qabul qilingan', value: monthGroup.value.qabul, highlight: true },
+  { label: 'Sinov', value: monthGroup.value.sinov, highlight: false },
+])
 
-// Recent candidates
-const candidates = [
-  { name: 'Alisher Umarov', age: 25, phone: '+998901234567', job: 'Dasturchi', status: 'Qabul', time: '15.11', color: 'blue' },
-  { name: 'Dilnoza Karimova', age: 28, phone: '+998901234568', job: 'Buxgalter', status: 'Suhbat', time: '15.11', color: 'amber' },
-  { name: 'Bobur Rahimov', age: 30, phone: '+998901234569', job: 'Menejer', status: 'Sinov', time: '15.11', color: 'purple' },
-  { name: 'Malika Azimova', age: 23, phone: '+998901234570', job: 'Dizayner', status: 'Anketa', time: '15.11', color: 'sky' },
-  { name: 'Sardor Toshmatov', age: 27, phone: '+998901234571', job: 'Sotuvchi', status: 'Keldi', time: '15.11', color: 'emerald' },
-  { name: 'Nigora Sultonova', age: 26, phone: '+998901234572', job: 'Marketing mutaxassisi', status: 'Qabul', time: '15.11', color: 'rose' },
-  { name: 'Jasur Normatov', age: 29, phone: '+998901234573', job: 'Haydovchi', status: 'Suhbat', time: '15.11', color: 'indigo' },
-  { name: 'Feruza Abdullayeva', age: 24, phone: '+998901234574', job: 'HR menejer', status: 'Anketa', time: '15.11', color: 'pink' },
-]
-
-const statusBadge = (status) => {
-  const map = {
-    'Qabul': 'bg-emerald-50 text-emerald-600',
-    'Suhbat': 'bg-amber-50 text-amber-600',
-    'Sinov': 'bg-sky-50 text-sky-600',
-    'Anketa': 'bg-blue-50 text-blue-600',
-    'Keldi': 'bg-green-50 text-green-600',
-  }
-  return map[status] || 'bg-slate-50 text-slate-600'
-}
-
-const avatarBg = (color) => {
-  const map = {
-    blue: 'bg-blue-500',
-    amber: 'bg-amber-500',
-    purple: 'bg-purple-500',
-    sky: 'bg-sky-500',
-    emerald: 'bg-emerald-500',
-    rose: 'bg-rose-500',
-    indigo: 'bg-indigo-500',
-    pink: 'bg-pink-500',
-  }
-  return map[color] || 'bg-slate-500'
-}
-
-const formatMoney = (v) => {
-  if (v >= 1000000) return (v / 1000000).toFixed(0) + 'M'
-  if (v >= 1000) return (v / 1000).toFixed(0) + 'K'
-  return String(v)
-}
+onMounted(loadStats)
 </script>
 
 <template>
   <div class="space-y-4">
     <!-- Welcome -->
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h1 class="text-xl sm:text-2xl font-bold text-slate-800 break-words">Xush kelibsiz, {{ userName }}</h1>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">{{ today }}</p>
-      </div>
-      <button
-        class="w-11 h-11 shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path
-            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-        </svg>
-      </button>
+    <div class="bg-gradient-to-r from-blue-600 to-blue-500 rounded-xl p-4 sm:p-6 text-white">
+      <h1 class="text-xl sm:text-2xl font-bold">Xush kelibsiz, {{ userName }}!</h1>
+      <p class="text-[13px] sm:text-sm opacity-90 mt-1">{{ today }}</p>
     </div>
 
     <!-- KPI cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div v-for="(c, i) in kpiCards" :key="i"
-        class="bg-white rounded-xl border border-slate-100 p-4 relative"
-        :class="i === 0 ? 'ring-2 ring-amber-300' : ''">
-        <div class="flex justify-between items-start">
-          <span class="text-[11px] font-semibold text-slate-400 tracking-wider uppercase">{{ c.label }}</span>
-          <div class="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center" :class="c.iconColor">
-            <svg v-if="c.icon === 'users'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-            </svg>
-            <svg v-else-if="c.icon === 'calendar'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            <svg v-else-if="c.icon === 'star'" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 14" />
-            </svg>
-          </div>
-        </div>
-        <p class="text-3xl font-bold text-slate-800 mt-3">{{ c.value }}</p>
-        <p class="text-[12px] text-slate-400 mt-0.5">{{ c.sub }}</p>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div v-for="k in kpiCards" :key="k.label" class="bg-white rounded-xl border border-slate-100 p-3">
+        <p class="text-[10px] font-bold uppercase text-slate-500 tracking-wider">{{ k.label }}</p>
+        <p class="text-2xl sm:text-3xl font-bold mt-1"
+          :class="{ 'text-blue-600': k.color === 'blue', 'text-amber-600': k.color === 'amber', 'text-purple-600': k.color === 'purple', 'text-rose-600': k.color === 'rose' }">
+          {{ k.value }}
+        </p>
+        <p class="text-[11px] text-slate-500 mt-1">{{ k.sub }}</p>
       </div>
     </div>
 
-    <!-- Middle row: tasks + monthly -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Today's tasks -->
+    <!-- Bar chart + donut -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
       <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="flex items-center gap-2 text-[14px] font-semibold text-slate-700">
-            <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 14" />
-            </svg>
-            Bugungi vazifalar
-          </h3>
-          <span class="text-[11px] text-slate-400">{{ todayTasks.length }} ta</span>
-        </div>
-        <div class="space-y-2">
-          <div v-for="(t, i) in todayTasks" :key="i"
-            class="flex items-start gap-3 p-3 rounded-lg border border-slate-100 hover:bg-slate-50">
-            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="9" />
-                <polyline points="12 7 12 12 15 14" />
-              </svg>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-start justify-between">
-                <h4 class="text-[14px] font-semibold text-slate-800">{{ t.title }}</h4>
-                <span class="text-[11px] font-medium px-2 py-0.5 rounded-md bg-red-50 text-red-500">{{ t.priority }}</span>
-              </div>
-              <p class="text-[12px] text-slate-500 mt-0.5">{{ t.desc }}</p>
-              <div class="flex items-center gap-3 mt-2 text-[11px] text-slate-400">
-                <span class="flex items-center gap-1">
-                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="9" />
-                    <polyline points="12 7 12 12 15 14" />
-                  </svg>
-                  {{ t.time }}
-                </span>
-                <span class="flex items-center gap-1 text-amber-500">
-                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26" />
-                  </svg>
-                  {{ t.tag }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Monthly results -->
-      <div class="bg-white rounded-xl border border-slate-100 p-4">
-        <h3 class="flex items-center gap-2 text-[14px] font-semibold text-slate-700 mb-3">
-          <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 3" />
-          </svg>
-          Oylik natijalar
-        </h3>
-        <div class="space-y-2">
-          <div v-for="(r, i) in monthlyResults" :key="i"
-            class="flex items-center justify-between px-3 py-2.5 rounded-lg"
-            :class="r.highlight ? 'bg-purple-50' : 'bg-slate-50'">
-            <span class="text-[13px] text-slate-600">{{ r.label }}</span>
-            <span class="text-[13px] font-bold text-blue-500">{{ r.value }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Chart row: bar + donut -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <!-- Bar chart -->
-      <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 p-4">
-        <h3 class="flex items-center gap-2 text-[14px] font-semibold text-slate-700 mb-3">
-          <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 3v18h18" />
-            <path d="M7 15l4-4 4 4 5-6" />
-          </svg>
-          Haftalik statistika
-        </h3>
-        <div class="flex gap-2 sm:gap-3">
-          <!-- Y-axis labels -->
-          <div class="flex flex-col justify-between text-[9px] sm:text-[10px] text-slate-400 py-1 h-[200px] sm:h-[260px]">
+        <h3 class="text-sm font-bold text-slate-800 mb-3">Oylik daromad (oxirgi 6 oy)</h3>
+        <div class="flex gap-2">
+          <div class="flex flex-col justify-between text-[10px] text-slate-400 h-[180px] py-1">
             <span v-for="l in yAxisLabels" :key="l">{{ formatMoney(l) }}</span>
           </div>
-          <!-- Bars -->
-          <div class="flex-1 flex items-end justify-around gap-1 sm:gap-2 h-[200px] sm:h-[260px] border-l border-b border-slate-100 pl-2 pb-1 relative">
-            <!-- Gridlines -->
-            <div class="absolute inset-0 flex flex-col justify-between pl-2 pb-1 pointer-events-none">
-              <div v-for="(_, i) in yAxisLabels" :key="i" class="border-t border-slate-50"></div>
-            </div>
-            <div v-for="b in barData" :key="b.label" class="flex flex-col items-center gap-1.5 sm:gap-2 flex-1 relative z-10">
-              <div class="w-full max-w-[56px] bg-blue-500 rounded-sm transition-all"
-                :style="{ height: (b.value / maxValue * 100) + '%' }"></div>
-              <span class="text-[10px] sm:text-[11px] text-slate-500">{{ b.label }}</span>
+          <div class="flex-1 flex items-end justify-around gap-2 h-[180px] border-l border-b border-slate-100 pl-2 pb-1">
+            <div v-for="b in barData" :key="b.label" class="flex flex-col items-center gap-1 flex-1">
+              <div class="w-full max-w-[40px] bg-blue-500 rounded-sm transition-all"
+                :style="{ height: ((b.value / maxBar) * 160) + 'px' }"
+                :title="`${b.label}: ${formatMoney(b.value)} so'm`"></div>
+              <span class="text-[10px] text-slate-500">{{ b.label }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Donut chart -->
       <div class="bg-white rounded-xl border border-slate-100 p-4">
-        <h3 class="flex items-center gap-2 text-[14px] font-semibold text-slate-700 mb-3">
-          <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18M12 3a14 14 0 0 1 0 18" />
-          </svg>
-          Nomzodlar holati
-        </h3>
-        <div class="flex items-center justify-center py-3">
-          <svg viewBox="0 0 150 150" class="w-[160px] h-[160px] -rotate-90">
-            <circle cx="75" cy="75" r="55" fill="none" stroke="#f1f5f9" stroke-width="18" />
-            <circle v-for="(s, i) in donutSegments" :key="i" cx="75" cy="75" r="55" fill="none"
-              :stroke="s.color" stroke-width="18"
+        <h3 class="text-sm font-bold text-slate-800 mb-3">Nomzodlar holati</h3>
+        <div class="relative w-[160px] mx-auto">
+          <svg viewBox="0 0 140 140" class="w-full -rotate-90">
+            <circle cx="70" cy="70" r="55" fill="none" stroke="#f1f5f9" stroke-width="14" />
+            <circle v-for="(s, i) in donutSegments" :key="i" cx="70" cy="70" r="55" fill="none"
+              :stroke="s.color" stroke-width="14"
               :stroke-dasharray="`${s.length} ${s.circumference}`"
               :stroke-dashoffset="-s.offset" stroke-linecap="butt" />
           </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p class="text-[10px] uppercase text-slate-400 font-semibold">Jami</p>
+            <p class="text-2xl font-bold text-slate-800 leading-none">{{ donutTotal }}</p>
+          </div>
         </div>
-        <div class="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+        <div class="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
           <span v-for="d in donut" :key="d.label" class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full" :style="{ background: d.color }"></span>
-            {{ d.label }}: {{ d.value }}
+            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: d.color }"></span>
+            <span class="font-medium">{{ d.label }}:</span>
+            <span class="font-semibold text-slate-800">{{ d.value }}</span>
           </span>
         </div>
       </div>
     </div>
 
-    <!-- Recent candidates -->
+    <!-- This month results -->
     <div class="bg-white rounded-xl border border-slate-100 p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="flex items-center gap-2 text-[14px] font-semibold text-slate-700">
-          <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-          </svg>
-          So'nggi nomzodlar
-        </h3>
-        <span class="text-[11px] text-slate-400">{{ candidates.length }} ta</span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div v-for="(c, i) in candidates" :key="i"
-          class="p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-sm transition">
-          <div class="flex items-start gap-3">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
-              :class="avatarBg(c.color)">
-              {{ c.name.charAt(0) }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-[13px] font-bold text-slate-800 truncate">{{ c.name }}</p>
-              <p class="text-[11px] text-slate-400">{{ c.age }} yosh</p>
-            </div>
-          </div>
-          <div class="mt-2.5 space-y-1 text-[12px] text-slate-500">
-            <p class="flex items-center gap-1.5">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path
-                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              {{ c.phone }}
-            </p>
-            <p class="flex items-center gap-1.5">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="7" width="20" height="14" rx="2" />
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-              </svg>
-              {{ c.job }}
-            </p>
-          </div>
-          <div class="mt-2.5 flex items-center justify-between">
-            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md" :class="statusBadge(c.status)">
-              {{ c.status }}
-            </span>
-            <span class="text-[11px] text-slate-400">{{ c.time }}</span>
-          </div>
+      <h3 class="text-sm font-bold text-slate-800 mb-3">Joriy oy natijalari</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div v-for="m in monthlyResults" :key="m.label"
+          class="rounded-lg p-3 border"
+          :class="m.highlight ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'">
+          <p class="text-[11px] text-slate-500">{{ m.label }}</p>
+          <p class="text-2xl font-bold mt-1" :class="m.highlight ? 'text-emerald-600' : 'text-slate-800'">
+            {{ m.value }}
+          </p>
         </div>
       </div>
     </div>

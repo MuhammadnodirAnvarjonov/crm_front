@@ -1,405 +1,328 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import BaseButton from '@/components/form/BaseButton.vue'
-import { addIcon } from '@/components/icons/icon-temp'
+import { ref, computed, onMounted } from 'vue'
+import BaseSelect from '@/components/form/BaseSelect.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import Form from './Form.vue'
+import tasksService from '@/services/tasks.service'
+import usersService from '@/services/users.service'
+import { closeIcon } from '@/components/icons/icon-temp'
 
-const { t } = useI18n()
+const items = ref([])
+const users = ref([])
+const loading = ref(false)
 
-// Top stat cards
-const statCards = computed(() => [
-  { label: t('tasks_total'), value: 10, icon: 'doc', bg: 'bg-slate-50', color: 'text-slate-600' },
-  { label: t('pending'), value: 7, icon: 'clock', bg: 'bg-amber-50', color: 'text-amber-500' },
-  { label: t('in_progress_status'), value: 2, icon: 'play', bg: 'bg-blue-50', color: 'text-blue-500' },
-  { label: t('done'), value: 0, icon: 'check', bg: 'bg-emerald-50', color: 'text-emerald-500' },
-  { label: t('overdue'), value: 1, icon: 'alert', bg: 'bg-rose-50', color: 'text-rose-500' },
-])
+const searchQuery = ref('')
+const typeFilter = ref(null)
+const statusFilter = ref(null)
+const userFilter = ref(null)
+const overdueFilter = ref(false)
 
-// Task type filters
-const activeType = ref('all')
-const taskTypes = computed(() => [
-  { key: 'all', label: t('all_tasks'), count: 10, color: 'blue' },
-  { key: 'call', label: t('task_call'), count: 2, color: 'sky' },
-  { key: 'callback', label: t('task_callback'), count: 2, color: 'teal' },
-  { key: 'check', label: t('task_check'), count: 1, color: 'pink' },
-  { key: 'payment', label: t('task_payment'), count: 1, color: 'orange' },
-  { key: 'sale', label: t('task_sale'), count: 1, color: 'amber' },
-  { key: 'offer', label: t('task_offer'), count: 1, color: 'purple' },
-  { key: 'contract', label: t('task_contract'), count: 1, color: 'emerald' },
-  { key: 'ad', label: t('task_ad'), count: 1, color: 'rose' },
-])
+const showModal = ref(false)
+const editData = ref(null)
+const showConfirm = ref(false)
+const itemToDelete = ref(null)
 
-const activeStatus = ref('all')
-const statuses = computed(() => [
-  { key: 'all', label: t('all_tasks') },
-  { key: 'pending', label: t('pending') },
-  { key: 'progress', label: t('in_progress_status') },
-  { key: 'done', label: t('done') },
-  { key: 'overdue', label: t('overdue') },
-  { key: 'no_contact', label: t('no_contact') },
-])
+const TYPE_LABELS = {
+  call: "Qo'ng'iroq", callback: 'Qayta aloqa', check: 'Tekshiruv',
+  payment: "To'lov eslatmasi", sale: 'Sotuv', offer: 'Taklif',
+  contract: 'Shartnoma', ad: 'Reklama taklifi', other: 'Boshqa',
+}
+const STATUS_LABELS = {
+  pending: 'Kutilmoqda', progress: 'Jarayonda', done: 'Bajarildi',
+  overdue: "Muddati o'tdi", no_contact: 'Aloqa yo\'q',
+}
+const TYPE_COLORS = {
+  call: 'sky', callback: 'purple', check: 'pink', payment: 'orange',
+  sale: 'amber', offer: 'indigo', contract: 'emerald', ad: 'rose', other: 'slate',
+}
 
-// Tasks
-const tasks = ref([
-  {
-    type: 'call', typeLabel: "Qo'ng'iroq", iconColor: 'sky', icon: 'phone',
-    title: 'Yangi ariza', desc: "Mijoz bilan bog'lanish - yangi ish ariza",
-    person: 'Jasur Alimov', phone: '+998 90 123 45 67',
-    timeEstimate: 'Tahminan 1 soat dan keyin', timeDate: '24 Yan, 18:33',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'callback', typeLabel: 'Qayta aloqa', iconColor: 'purple', icon: 'chat',
-    title: "Qayta qo'ng'iroq", desc: "Qayta qo'ng'iroq qilish - mijoz javob bermadi",
-    person: 'Nodira Rahimova', phone: '+998 91 234 56 78',
-    timeEstimate: '1 kun dan keyin', timeDate: '25 Yan, 17:33',
-    attempts: '1/3',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'check', typeLabel: 'Tekshiruv', iconColor: 'pink', icon: 'check',
-    title: 'Suhbat tekshiruvi', desc: 'Xodim bordimi – aniqlash',
-    person: 'Kamol Umarov', phone: '+998 93 345 67 89',
-    timeEstimate: '1 kun dan keyin', timeDate: '25 Yan, 17:33',
-    status: 'Jarayonda', statusType: 'progress',
-    action: 'outcomes',
-  },
-  {
-    type: 'payment', typeLabel: "To'lov eslatmasi", iconColor: 'orange', icon: 'dollar',
-    title: "To'lov eslatmasi", desc: "To'lovni eslatish - muddat yaqinlashmoqda",
-    person: 'Sherzod Toshev', phone: '+998 94 456 78 90',
-    timeEstimate: '1 kun dan keyin', timeDate: '25 Yan, 17:33',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'sale', typeLabel: 'Sotuv', iconColor: 'amber', icon: 'cart',
-    title: 'Pullik xizmat taklifi', desc: "Pullik xizmat taklif qil - 3 kun bepul e'lon",
-    person: 'Malika Qodirova', phone: '+998 95 567 89 01',
-    timeEstimate: 'tahminan 4 soat dan keyin', timeDate: '24 Yan, 21:33',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'offer', typeLabel: 'Taklif', iconColor: 'purple', icon: 'edit',
-    title: 'Qayta taklif',
-    desc: "Qayta kanalga bepul e'lon berish + pullik xizmatlami tushuntirish",
-    person: 'Rustam Nazarov', phone: '+998 97 789 01 23',
-    timeEstimate: '7 kun dan keyin', timeDate: '31 Yan, 17:33',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'ad', typeLabel: 'Reklama taklifi', iconColor: 'rose', icon: 'megaphone',
-    title: 'Reklama taklifi', desc: 'Reklama xizmatini taklif qil - mos xodim topilmadi',
-    person: 'Gulnora Abdullayeva', phone: '+998 99 890 12 34',
-    timeEstimate: 'tahminan 2 soat dan keyin', timeDate: '24 Yan, 19:33',
-    status: 'Kutilmoqda', statusType: 'pending',
-    action: 'start',
-  },
-  {
-    type: 'contract', typeLabel: 'Shartnoma', iconColor: 'emerald', icon: 'contract',
-    title: 'Shartnoma yuborish',
-    desc: 'Shartnoma yuborish / pullik xizmatni faollashtirish',
-    person: 'Axmal Rasulov', phone: '+998 90 901 23 45',
-    timeEstimate: 'bir minutdan kam oldin', timeDate: '24 Yan, 17:33',
-    timeOverdue: true,
-    status: 'Jarayonda', statusType: 'progress',
-    action: 'done',
-  },
-  {
-    type: 'callback', typeLabel: 'Qayta aloqa', iconColor: 'purple', icon: 'chat',
-    title: 'Uchinchi urinish', desc: 'Oxirgi urinish - 3 marta javob bermadi',
-    person: 'Sarvar Mahmudov', phone: '+998 91 012 34 56',
-    timeEstimate: 'tahminan 2 soat oldin', timeDate: '24 Yan, 15:33',
-    timeOverdue: true,
-    attempts: '3/3',
-    status: "Muddati o'tdi", statusType: 'overdue',
-    action: 'none',
-  },
-])
+const typeOptions = Object.entries(TYPE_LABELS).map(([value, name]) => ({ value, name }))
+const statusOptions = Object.entries(STATUS_LABELS).map(([value, name]) => ({ value, name }))
+const userOptions = computed(() => users.value.map((u) => ({
+  id: u.id,
+  name: u.user_name || `User ${u.id}`,
+})))
 
-// Filter
+const formatDateTime = (d) => {
+  if (!d) return ''
+  const dt = new Date(d); if (isNaN(dt.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`
+}
+
+const view = computed(() => items.value.map((t) => {
+  const isOverdue = !!t.is_overdue && t.status !== 'done'
+  const status = isOverdue && t.status !== 'done' ? 'overdue' : t.status
+  return {
+    id: t.id, raw: t,
+    type: t.type, typeLabel: TYPE_LABELS[t.type] || t.type, typeColor: TYPE_COLORS[t.type] || 'slate',
+    title: t.title, description: t.description || '',
+    personName: t.person_name || '—',
+    phone: t.phone || '',
+    dueAt: formatDateTime(t.due_at),
+    dueAtMs: t.due_at ? new Date(t.due_at).getTime() : 0,
+    status, statusLabel: STATUS_LABELS[status] || status,
+    attempts: t.attempts, maxAttempts: t.max_attempts,
+    assignedUser: t.assigned_user ? (t.assigned_user.user_name || `User ${t.assigned_user.id}`) : '—',
+    isOverdue,
+  }
+}))
+
 const filtered = computed(() => {
-  let list = tasks.value
-  if (activeType.value !== 'all') {
-    list = list.filter((task) => task.type === activeType.value)
+  let list = view.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter((t) => t.title.toLowerCase().includes(q) ||
+      t.personName.toLowerCase().includes(q) || t.phone.includes(q))
   }
-  if (activeStatus.value !== 'all') {
-    list = list.filter((task) => task.statusType === activeStatus.value)
-  }
+  if (typeFilter.value) list = list.filter((t) => t.type === typeFilter.value)
+  if (statusFilter.value) list = list.filter((t) => t.status === statusFilter.value)
+  if (userFilter.value) list = list.filter((t) => t.raw.assigned_user_id === userFilter.value)
+  if (overdueFilter.value) list = list.filter((t) => t.isOverdue)
   return list
 })
 
-// Styles
-const typeTabClass = (tab) => {
-  if (activeType.value === tab.key) {
-    const map = {
-      blue: 'bg-blue-600 text-white', sky: 'bg-sky-500 text-white',
-      teal: 'bg-teal-500 text-white', pink: 'bg-pink-500 text-white',
-      orange: 'bg-orange-500 text-white', amber: 'bg-amber-500 text-white',
-      purple: 'bg-purple-500 text-white', emerald: 'bg-emerald-500 text-white',
-      rose: 'bg-rose-500 text-white',
-    }
-    return map[tab.color] || 'bg-blue-600 text-white'
-  }
-  const map = {
-    blue: 'bg-blue-50 text-blue-600', sky: 'bg-sky-50 text-sky-600',
-    teal: 'bg-teal-50 text-teal-600', pink: 'bg-pink-50 text-pink-600',
-    orange: 'bg-orange-50 text-orange-600', amber: 'bg-amber-50 text-amber-600',
-    purple: 'bg-purple-50 text-purple-600', emerald: 'bg-emerald-50 text-emerald-600',
-    rose: 'bg-rose-50 text-rose-600',
-  }
-  return map[tab.color] || 'bg-slate-50 text-slate-600'
+const counts = computed(() => ({
+  total: view.value.length,
+  pending: view.value.filter((t) => t.status === 'pending').length,
+  progress: view.value.filter((t) => t.status === 'progress').length,
+  done: view.value.filter((t) => t.status === 'done').length,
+  overdue: view.value.filter((t) => t.isOverdue).length,
+}))
+
+const statusBadge = (s) => {
+  if (s === 'done') return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+  if (s === 'progress') return 'bg-blue-100 text-blue-700 border-blue-200'
+  if (s === 'overdue') return 'bg-rose-100 text-rose-700 border-rose-200'
+  if (s === 'no_contact') return 'bg-slate-100 text-slate-700 border-slate-200'
+  return 'bg-amber-100 text-amber-700 border-amber-200'
+}
+const typeBadge = (color) => ({
+  sky: 'bg-sky-50 text-sky-600 border-sky-200',
+  purple: 'bg-purple-50 text-purple-600 border-purple-200',
+  pink: 'bg-pink-50 text-pink-600 border-pink-200',
+  orange: 'bg-orange-50 text-orange-600 border-orange-200',
+  amber: 'bg-amber-50 text-amber-600 border-amber-200',
+  indigo: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+  emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+  rose: 'bg-rose-50 text-rose-600 border-rose-200',
+  slate: 'bg-slate-50 text-slate-600 border-slate-200',
+})[color] || 'bg-slate-50 text-slate-600 border-slate-200'
+
+const loadAll = async () => {
+  loading.value = true
+  try { items.value = (await tasksService.all()) || [] }
+  catch (e) { console.error(e); items.value = [] }
+  finally { loading.value = false }
+}
+const loadUsers = async () => {
+  try {
+    const data = await usersService.all()
+    users.value = Array.isArray(data) ? data : (data?.rows || [])
+  } catch (e) { console.error(e) }
 }
 
-const statusBadge = (type) => {
-  const map = {
-    pending: 'bg-amber-100 text-amber-700 border-amber-200',
-    progress: 'bg-blue-100 text-blue-700 border-blue-200',
-    overdue: 'bg-rose-100 text-rose-700 border-rose-200',
-    done: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  }
-  return map[type] || 'bg-slate-100 text-slate-600 border-slate-200'
+const openForm = (data = null) => { editData.value = data; showModal.value = true }
+const closeForm = () => { showModal.value = false; editData.value = null }
+const openEdit = (item) => openForm(item.raw)
+
+const promptDelete = (item) => { itemToDelete.value = item; showConfirm.value = true }
+const handleConfirmDelete = async () => {
+  if (!itemToDelete.value) return
+  try { await tasksService.delete(itemToDelete.value.id); showConfirm.value = false; itemToDelete.value = null; await loadAll() }
+  catch (e) { console.error(e); showConfirm.value = false }
 }
 
-const iconBg = (c) => {
-  const map = {
-    sky: 'bg-sky-500', purple: 'bg-purple-500', pink: 'bg-pink-500',
-    orange: 'bg-orange-500', amber: 'bg-amber-500', emerald: 'bg-emerald-500',
-    rose: 'bg-rose-500',
-  }
-  return map[c] || 'bg-slate-500'
+const startTask = async (item) => {
+  try { await tasksService.start(item.id); await loadAll() } catch (e) { console.error(e) }
 }
+const completeTask = async (item) => {
+  const outcome = window.prompt('Natija (ixtiyoriy):', '')
+  try { await tasksService.complete(item.id, outcome || null); await loadAll() } catch (e) { console.error(e) }
+}
+
+const resetFilters = () => {
+  searchQuery.value = ''; typeFilter.value = null; statusFilter.value = null
+  userFilter.value = null; overdueFilter.value = false
+}
+
+onMounted(() => { loadUsers(); loadAll() })
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Header with action -->
-    <div class="flex justify-end">
-      <BaseButton :label="$t('new_task')" status="primary" size="sm">
-        <template #icon>
-          <addIcon size="w-4 h-4" />
-        </template>
-      </BaseButton>
-    </div>
-
-    <!-- Stat cards -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <div v-for="(s, i) in statCards" :key="i"
-        class="bg-white rounded-xl border border-slate-100 p-4 flex items-center justify-between">
-        <div>
-          <p class="text-[12px] font-semibold text-slate-500">{{ s.label }}</p>
-          <p class="text-3xl font-bold mt-1" :class="s.color">{{ s.value }}</p>
-        </div>
-        <div class="w-10 h-10 rounded-lg flex items-center justify-center" :class="[s.bg, s.color]">
-          <svg v-if="s.icon === 'doc'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          <svg v-else-if="s.icon === 'clock'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <polyline points="12 7 12 12 15 14" />
-          </svg>
-          <svg v-else-if="s.icon === 'play'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
-          </svg>
-          <svg v-else-if="s.icon === 'check'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <polyline points="9 12 11 14 15 10" />
-          </svg>
-          <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="8" x2="12" y2="13" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filter panel -->
-    <div class="bg-white rounded-xl border border-slate-100 p-4 space-y-4">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-3 flex-wrap">
       <div>
-        <p class="text-[12px] font-semibold text-slate-500 mb-2">Vazifa turi</p>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="tab in taskTypes" :key="tab.key" @click="activeType = tab.key"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition"
-            :class="typeTabClass(tab)">
-            <span>{{ tab.label }}</span>
-            <span class="text-[11px] font-bold px-1.5 rounded"
-              :class="activeType === tab.key ? 'bg-white/25' : 'bg-white/60'">
-              {{ tab.count }}
-            </span>
-          </button>
-        </div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">{{ $t('tasks') }}</h1>
+        <p class="text-xs text-slate-500 mt-1">Vazifalar va eslatmalar</p>
       </div>
+      <button type="button" @click="openForm()"
+        class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Yangi vazifa
+      </button>
+    </div>
 
-      <div>
-        <p class="text-[12px] font-semibold text-slate-500 mb-2">Holat</p>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="s in statuses" :key="s.key" @click="activeStatus = s.key"
-            class="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition"
-            :class="activeStatus === s.key ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'">
-            {{ s.label }}
-          </button>
-        </div>
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div class="bg-white rounded-lg border border-slate-100 p-3">
+        <p class="text-[11px] text-slate-500">Jami</p>
+        <p class="text-lg font-bold text-slate-800">{{ counts.total }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-100 p-3">
+        <p class="text-[11px] text-slate-500">Kutilmoqda</p>
+        <p class="text-lg font-bold text-amber-600">{{ counts.pending }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-100 p-3">
+        <p class="text-[11px] text-slate-500">Jarayonda</p>
+        <p class="text-lg font-bold text-blue-600">{{ counts.progress }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-100 p-3">
+        <p class="text-[11px] text-slate-500">Bajarildi</p>
+        <p class="text-lg font-bold text-emerald-600">{{ counts.done }}</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-100 p-3">
+        <p class="text-[11px] text-slate-500">Muddati o'tdi</p>
+        <p class="text-lg font-bold text-rose-600">{{ counts.overdue }}</p>
       </div>
     </div>
 
-    <!-- Task cards grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      <article v-for="(t, i) in filtered" :key="i"
-        class="bg-white rounded-xl border border-slate-100 p-4 hover:shadow-md transition space-y-3">
+    <!-- Filters -->
+    <div class="bg-white rounded-xl border border-slate-100 p-3 space-y-3">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+        <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input v-model="searchQuery" placeholder="Sarlavha, ism yoki telefon..."
+          class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <BaseSelect v-model="typeFilter" :options="typeOptions" labelKey="name" valueKey="value" placeholder="Vazifa turi" size="sm" />
+        <BaseSelect v-model="statusFilter" :options="statusOptions" labelKey="name" valueKey="value" placeholder="Holati" size="sm" />
+        <BaseSelect v-model="userFilter" :options="userOptions" labelKey="name" valueKey="id" placeholder="Mas'ul xodim" size="sm" />
+        <label class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] cursor-pointer hover:bg-slate-50">
+          <input type="checkbox" v-model="overdueFilter" class="w-4 h-4 rounded border-slate-300 text-rose-500" />
+          <span>Muddati o'tgan</span>
+        </label>
+        <button type="button" @click="resetFilters"
+          class="text-[12px] text-slate-500 hover:text-slate-700 font-medium flex items-center justify-center gap-1 border border-slate-200 rounded-lg">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          Tozalash
+        </button>
+      </div>
+    </div>
 
-        <!-- Header: icon + type/title + status -->
-        <div class="flex items-start justify-between gap-2">
-          <div class="flex items-start gap-2 min-w-0">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white shrink-0"
-              :class="iconBg(t.iconColor)">
-              <svg v-if="t.icon === 'phone'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path
-                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              <svg v-else-if="t.icon === 'chat'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              <svg v-else-if="t.icon === 'check'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <svg v-else-if="t.icon === 'dollar'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-              <svg v-else-if="t.icon === 'cart'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="9" cy="21" r="1" />
-                <circle cx="20" cy="21" r="1" />
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-              </svg>
-              <svg v-else-if="t.icon === 'edit'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              <svg v-else-if="t.icon === 'megaphone'" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 11v3a4 4 0 0 0 4 4h1l4 4V7L8 11H3z" />
-                <path d="M17 7a5 5 0 0 1 0 10" />
-              </svg>
-              <svg v-else-if="t.icon === 'contract'" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="8" y1="13" x2="16" y2="13" />
-                <line x1="8" y1="17" x2="13" y2="17" />
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-bold text-slate-800 truncate">{{ t.typeLabel }}</p>
-              <p class="text-[11px] text-slate-500 truncate">{{ t.title }}</p>
-            </div>
-          </div>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md border shrink-0"
-            :class="statusBadge(t.statusType)">
-            {{ t.status }}
+    <!-- Empty -->
+    <div v-if="!loading && filtered.length === 0" class="bg-white rounded-xl border border-slate-100 py-16 px-4 text-center">
+      <p class="text-slate-500 text-sm">Vazifalar topilmadi</p>
+    </div>
+
+    <!-- Cards -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div v-for="t in filtered" :key="t.id"
+        class="bg-white rounded-xl border border-slate-100 p-3 space-y-2 hover:shadow-md transition"
+        :class="t.isOverdue ? 'border-rose-300' : ''">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded border" :class="typeBadge(t.typeColor)">
+            {{ t.typeLabel }}
+          </span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded border" :class="statusBadge(t.status)">
+            {{ t.statusLabel }}
           </span>
         </div>
 
-        <!-- Description -->
-        <p class="text-[13px] text-slate-700">{{ t.desc }}</p>
+        <div>
+          <p class="text-[13px] font-bold text-slate-800 leading-tight">{{ t.title }}</p>
+          <p v-if="t.description" class="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{{ t.description }}</p>
+        </div>
 
-        <!-- Person + phone -->
-        <div class="flex items-center gap-4 text-[12px] text-slate-600 flex-wrap">
-          <div class="flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M20 21a8 8 0 0 0-16 0" />
+        <div class="space-y-1 text-[12px] text-slate-700">
+          <div v-if="t.personName !== '—'" class="flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="4" /><path d="M20 21a8 8 0 0 0-16 0" />
             </svg>
-            <span>{{ t.person }}</span>
+            <span class="truncate">{{ t.personName }}</span>
           </div>
-          <div class="flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path
-                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+          <div v-if="t.phone" class="flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
             </svg>
             <span>{{ t.phone }}</span>
           </div>
-        </div>
-
-        <!-- Time -->
-        <div class="flex items-center gap-4 text-[12px] flex-wrap">
-          <div class="flex items-center gap-1.5" :class="t.timeOverdue ? 'text-rose-500' : 'text-slate-600'">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 14" />
+          <div v-if="t.dueAt" class="flex items-center gap-1.5" :class="t.isOverdue ? 'text-rose-500' : ''">
+            <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
             </svg>
-            <span>{{ t.timeEstimate }}</span>
+            <span>{{ t.dueAt }}</span>
           </div>
-          <span class="text-slate-400">•</span>
-          <div class="flex items-center gap-1.5 text-slate-600">
-            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            <span>{{ t.timeDate }}</span>
+          <div v-if="t.assignedUser !== '—'" class="text-[11px] text-slate-500">
+            Mas'ul: <span class="font-semibold text-slate-700">{{ t.assignedUser }}</span>
+          </div>
+          <div v-if="t.type === 'callback' && t.maxAttempts > 1" class="text-[11px] text-slate-500">
+            Urinishlar: <span class="font-semibold">{{ t.attempts }}/{{ t.maxAttempts }}</span>
           </div>
         </div>
 
-        <!-- Attempts -->
-        <p v-if="t.attempts" class="text-[12px] text-slate-500">Urinishlar: <span
-            class="font-semibold text-slate-700">{{ t.attempts }}</span></p>
-
-        <!-- Actions -->
-        <div v-if="t.action === 'start'" class="pt-1">
-          <button class="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold">
-            Boshlash
-          </button>
+        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <div class="flex items-center gap-1">
+            <button v-if="t.status === 'pending'" @click="startTask(t)" title="Boshlash"
+              class="px-2 py-1 rounded-md text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700">
+              Boshlash
+            </button>
+            <button v-else-if="t.status === 'progress'" @click="completeTask(t)" title="Yakunlash"
+              class="px-2 py-1 rounded-md text-[10px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700">
+              Yakunlash
+            </button>
+            <span v-else-if="t.status === 'done'" class="text-[11px] text-emerald-600 font-semibold">✓ Bajarildi</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button @click="openEdit(t)" title="Tahrirlash"
+              class="w-7 h-7 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button @click="promptDelete(t)" title="O'chirish"
+              class="w-7 h-7 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div v-else-if="t.action === 'done'" class="pt-1">
-          <button
-            class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-semibold">
-            Bajarildi
-          </button>
-        </div>
-        <div v-else-if="t.action === 'outcomes'" class="pt-1 flex flex-wrap gap-2">
-          <button
-            class="px-3 py-1 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200">
-            Bajarildi
-          </button>
-          <button
-            class="px-3 py-1 rounded-md text-[11px] font-semibold bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200">
-            Bordi
-          </button>
-          <button
-            class="px-3 py-1 rounded-md text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200">
-            Bormadi
-          </button>
-          <button
-            class="px-3 py-1 rounded-md text-[11px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200">
-            Kechiktirdi
-          </button>
-        </div>
-      </article>
-
-      <div v-if="!filtered.length" class="col-span-full text-center py-10 text-slate-400 text-sm">
-        Vazifalar topilmadi
       </div>
     </div>
+
+    <Transition name="modal">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeForm"></div>
+        <div class="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl flex flex-col max-h-[90vh]">
+          <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800">{{ editData?.id ? 'Vazifani tahrirlash' : 'Yangi vazifa' }}</h3>
+            <button class="text-gray-400 hover:text-red-500 p-1" @click="closeForm"><closeIcon class="w-6 h-6" /></button>
+          </div>
+          <div class="p-4 sm:p-6 overflow-y-auto">
+            <Form :edit-data="editData" @close="closeForm" @saved="loadAll" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <ConfirmModal v-if="showConfirm" :show="showConfirm" title="Vazifani o'chirish"
+      :message="`'${itemToDelete?.title || ''}' vazifasini o'chirishni tasdiqlaysizmi?`"
+      confirm-text="Ha, o'chirish" cancel-text="Bekor qilish" type="danger" :duration="5"
+      @confirm="handleConfirmDelete" @cancel="showConfirm = false" />
   </div>
 </template>
+
+<style scoped>
+.modal-enter-active, .modal-leave-active { transition: opacity 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>

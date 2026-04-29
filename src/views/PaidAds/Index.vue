@@ -1,274 +1,217 @@
 <script setup>
-import { ref, computed } from 'vue'
-import BaseButton from '@/components/form/BaseButton.vue'
-import { addIcon } from '@/components/icons/icon-temp'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import BaseSelect from '@/components/form/BaseSelect.vue'
+import employersService from '@/services/employers.service'
+import regionsService from '@/services/regions.service'
 
-// Top stat cards (same as Bepul page)
-const statCards = [
-  { label: "Qo'ng'iroqlar", today: 9, total: 16, icon: 'clock', iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
-  { label: 'Anketalar', today: 9, total: 16, icon: 'doc', iconBg: 'bg-slate-50', iconColor: 'text-slate-500' },
-  { label: "Bepul e'lon", today: 9, total: 16, icon: 'bot', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { label: "Pullik e'lon", today: 9, total: 16, icon: 'dollar', iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
-  { label: 'Shartnomalar', today: 9, total: 16, icon: 'crown', iconBg: 'bg-amber-50', iconColor: 'text-amber-500' },
-  { label: 'Agent', today: 9, total: 16, icon: 'building', iconBg: 'bg-blue-50', iconColor: 'text-blue-500' },
-]
+const { locale } = useI18n()
+
+const items = ref([])
+const regions = ref([])
+const loading = ref(false)
 
 const searchQuery = ref('')
-const topFilter = ref('Barchasi')
-const topFilters = ['Barchasi', 'Bepul', 'Premium A', 'Premium B', 'Premium V']
+const tierFilter = ref(null)
+const regionFilter = ref(null)
+const districtFilter = ref(null)
+const expiredFilter = ref(false)
 
-// Employer card template
-const baseEmployer = {
-  id: '4654648', company: 'Grand Hotel', contact: 'Jamshid Rahimov',
-  phone: '+998901111113', address: "Toshkent, Navoiy ko'chasi 28",
-  position: 'Ofitsiant', positionCount: 2, tier: 'V',
-  salary: 3500000, startDate: '15.01.2025', deadline: '25.01.2025',
-  candidates: 1, matchTotal: 2,
+watch(regionFilter, () => { districtFilter.value = null })
+
+const tierOptions = [
+  { value: 'premium_a', name: 'Premium A' },
+  { value: 'premium_b', name: 'Premium B' },
+  { value: 'premium_v', name: 'Premium V' },
+]
+const TIER_LABELS = { premium_a: 'Premium A', premium_b: 'Premium B', premium_v: 'Premium V' }
+
+const nameByLocale = (obj) => {
+  if (!obj) return ''
+  const lang = locale.value
+  return (lang === 'ru' ? obj.name_ru : lang === 'uzk' ? obj.name_uzk : obj.name_uz) || obj.name_uz || ''
 }
 
-const employers = ref(Array.from({ length: 8 }, () => ({ ...baseEmployer })))
+const formatDate = (d) => {
+  if (!d) return ''
+  const dt = new Date(d); if (isNaN(dt.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()}`
+}
+const formatMoney = (v) => v ? Number(v).toLocaleString('fr-FR').replace(/\s/g, ',') : ''
 
-const filtered = computed(() => {
-  if (!searchQuery.value.trim()) return employers.value
-  const q = searchQuery.value.toLowerCase()
-  return employers.value.filter((e) =>
-    e.company.toLowerCase().includes(q) || e.phone.includes(q),
-  )
+const regionOptions = computed(() => regions.value.map((r) => ({ id: r.id, name: nameByLocale(r) })))
+const districtOptions = computed(() => {
+  if (!regionFilter.value) return []
+  const r = regions.value.find((x) => x.id === regionFilter.value)
+  return (r?.districts || []).map((d) => ({ id: d.id, name: nameByLocale(d) }))
 })
 
-const formatMoney = (v) => v.toLocaleString('fr-FR').replace(/\s/g, ',')
+const view = computed(() => items.value
+  .filter((e) => e.tier && e.tier !== 'free')
+  .map((e) => ({
+    id: e.id, raw: e,
+    displayId: String(e.id).padStart(7, '0'),
+    name: e.name, contactPerson: e.contact_person || '—',
+    phone: e.phone,
+    address: [e.address, nameByLocale(e.district), nameByLocale(e.region)].filter(Boolean).join(', ') || '—',
+    positionTitle: e.position_title || '—', positionCount: e.position_count || 1,
+    salary: e.salary ? Number(e.salary) : null,
+    deadline: e.deadline ? formatDate(e.deadline) : null,
+    isExpired: !!e.is_expired,
+    tier: e.tier, tierLabel: TIER_LABELS[e.tier] || e.tier,
+    createdAt: formatDate(e.createdAt),
+  }))
+)
+
+const filtered = computed(() => {
+  let list = view.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter((e) => e.name.toLowerCase().includes(q) || e.phone.includes(q))
+  }
+  if (tierFilter.value) list = list.filter((e) => e.tier === tierFilter.value)
+  if (regionFilter.value) list = list.filter((e) => e.raw.region_id === regionFilter.value)
+  if (districtFilter.value) list = list.filter((e) => e.raw.district_id === districtFilter.value)
+  if (expiredFilter.value) list = list.filter((e) => e.isExpired)
+  return list
+})
+
+const counts = computed(() => ({
+  all: view.value.length,
+  a: view.value.filter((e) => e.tier === 'premium_a').length,
+  b: view.value.filter((e) => e.tier === 'premium_b').length,
+  v: view.value.filter((e) => e.tier === 'premium_v').length,
+}))
+
+const tierBadge = (tier) => {
+  if (tier === 'premium_v') return 'bg-purple-100 text-purple-700 border border-purple-200'
+  if (tier === 'premium_b') return 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+  return 'bg-blue-100 text-blue-700 border border-blue-200'
+}
+const tierAccent = (tier) => {
+  if (tier === 'premium_v') return 'bg-purple-500'
+  if (tier === 'premium_b') return 'bg-indigo-500'
+  return 'bg-blue-500'
+}
+
+const loadAll = async () => {
+  loading.value = true
+  try { items.value = (await employersService.all()) || [] }
+  catch (e) { console.error(e); items.value = [] }
+  finally { loading.value = false }
+}
+const loadRegions = async () => {
+  try { regions.value = (await regionsService.all({})) || [] } catch (e) { console.error(e) }
+}
+
+const resetFilters = () => {
+  searchQuery.value = ''; tierFilter.value = null
+  regionFilter.value = null; districtFilter.value = null; expiredFilter.value = false
+}
+
+onMounted(() => { loadRegions(); loadAll() })
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Top stat bar -->
-    <div class="flex flex-col sm:flex-row items-stretch gap-3">
-      <button
-        class="h-14 sm:h-auto w-full sm:w-[72px] shrink-0 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md">
-        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path
-            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-        </svg>
-      </button>
-
-      <div class="flex-1 grid grid-cols-2 lg:grid-cols-6 gap-3">
-        <div v-for="(s, i) in statCards" :key="i"
-          class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
-          <div>
-            <p class="text-[11px] font-semibold text-slate-500">{{ s.label }}</p>
-            <div class="flex gap-3 mt-1">
-              <div>
-                <p class="text-[10px] text-slate-400">Bugungi</p>
-                <p class="text-[14px] font-bold" :class="s.iconColor">{{ s.today }}</p>
-              </div>
-              <div>
-                <p class="text-[10px] text-slate-400">Umumiy</p>
-                <p class="text-[14px] font-bold" :class="s.iconColor">{{ s.total }}</p>
-              </div>
-            </div>
-          </div>
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="[s.iconBg, s.iconColor]">
-            <svg v-if="s.icon === 'clock'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 14" />
-            </svg>
-            <svg v-else-if="s.icon === 'doc'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="8" y1="13" x2="16" y2="13" />
-              <line x1="8" y1="17" x2="13" y2="17" />
-            </svg>
-            <svg v-else-if="s.icon === 'bot'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="8" width="16" height="12" rx="2" />
-              <path d="M12 8V4M8 4h8" />
-              <circle cx="9" cy="13" r="1" />
-              <circle cx="15" cy="13" r="1" />
-              <path d="M10 17h4" />
-            </svg>
-            <svg v-else-if="s.icon === 'dollar'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-            <svg v-else-if="s.icon === 'crown'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 18l2-10 5 4 3-8 3 8 5-4 2 10H2z" />
-            </svg>
-            <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="2" width="16" height="20" rx="2" />
-              <path d="M9 22V12h6v10M9 6h.01M15 6h.01M9 10h.01M15 10h.01" />
-            </svg>
-          </div>
-        </div>
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">{{ $t('paid_ads') }}</h1>
+        <p class="text-xs text-slate-500 mt-1">Premium ish beruvchilarning pullik e'lonlari</p>
+        <p class="text-[11px] text-slate-400 mt-1">
+          Jami: <span class="font-semibold text-slate-700">{{ counts.all }}</span>
+          · A: {{ counts.a }} · B: {{ counts.b }} · V: {{ counts.v }}
+        </p>
       </div>
     </div>
 
-    <!-- Filter + action row -->
-    <div class="bg-white rounded-xl border border-slate-100 p-3 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
-      <div class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
-        <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="7" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <!-- Filters -->
+    <div class="bg-white rounded-xl border border-slate-100 p-3 space-y-3">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+        <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input v-model="searchQuery" placeholder="Kompaniya nomi yoki telefon raqamini qidiring..."
+        <input v-model="searchQuery" placeholder="Kompaniya nomi yoki telefon..."
           class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
       </div>
-      <div class="flex items-center gap-1 bg-slate-50 rounded-lg p-1 flex-wrap">
-        <button v-for="tab in topFilters" :key="tab" @click="topFilter = tab"
-          class="px-3 py-1.5 rounded-md text-[12px] font-medium transition"
-          :class="topFilter === tab ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-          {{ tab }}
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <BaseSelect v-model="tierFilter" :options="tierOptions" labelKey="name" valueKey="value" placeholder="Tarif" size="sm" />
+        <BaseSelect v-model="regionFilter" :options="regionOptions" labelKey="name" valueKey="id" placeholder="Viloyat" size="sm" />
+        <BaseSelect v-model="districtFilter" :options="districtOptions" labelKey="name" valueKey="id" placeholder="Tuman" size="sm" :disabled="!regionFilter" />
+        <label class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] cursor-pointer hover:bg-slate-50">
+          <input type="checkbox" v-model="expiredFilter" class="w-4 h-4 rounded border-slate-300 text-rose-500" />
+          <span>Muddati o'tgan</span>
+        </label>
+        <button type="button" @click="resetFilters"
+          class="text-[12px] text-slate-500 hover:text-slate-700 font-medium flex items-center justify-center gap-1 border border-slate-200 rounded-lg">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          Tozalash
         </button>
       </div>
-      <BaseButton :label="$t('new_employer')" status="primary" size="sm">
-        <template #icon>
-          <addIcon size="w-4 h-4" />
-        </template>
-      </BaseButton>
     </div>
 
-    <!-- Employer cards grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div v-for="(e, i) in filtered" :key="i"
-        class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:shadow-md transition">
-        <!-- Orange top strip -->
-        <div class="h-1.5 bg-orange-400"></div>
+    <!-- Empty -->
+    <div v-if="!loading && filtered.length === 0"
+      class="bg-white rounded-xl border border-slate-100 py-16 px-4 flex flex-col items-center gap-3 text-center">
+      <p class="text-slate-500 text-sm">Pullik e'lonlar yo'q</p>
+      <p class="text-[12px] text-slate-400">Ish beruvchilar sahifasida tarifni Premium A/B/V ga o'rnating</p>
+    </div>
 
+    <!-- Cards -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div v-for="e in filtered" :key="e.id"
+        class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:shadow-md transition ring-2 ring-pink-200">
+        <div class="h-1.5" :class="tierAccent(e.tier)"></div>
         <div class="p-3 space-y-2">
-          <!-- Top row: avatar + name + id -->
+          <div class="flex items-center justify-between">
+            <p class="text-[10px] text-slate-400">id: {{ e.displayId }}</p>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded" :class="tierBadge(e.tier)">{{ e.tierLabel }}</span>
+          </div>
+
           <div class="flex items-start gap-2">
-            <div
-              class="w-10 h-10 rounded-full bg-amber-400 text-white flex items-center justify-center font-bold shrink-0">
-              {{ e.company.charAt(0) }}
-            </div>
+            <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shrink-0">{{ e.name.charAt(0) }}</div>
             <div class="flex-1 min-w-0">
-              <p class="text-[14px] font-bold text-slate-800 truncate">{{ e.company }}</p>
-              <p class="text-[11px] text-slate-500 truncate">{{ e.contact }}</p>
+              <p class="text-[13px] font-bold text-slate-800 truncate">{{ e.name }}</p>
+              <p class="text-[11px] text-slate-500 truncate">{{ e.contactPerson }}</p>
             </div>
-            <p class="text-[10px] text-slate-400 whitespace-nowrap mt-1">id:000 {{ e.id }}</p>
           </div>
 
-          <!-- Tier + action icons -->
-          <div class="flex items-center justify-end gap-1.5 -mt-1">
-            <span class="w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold bg-purple-500 text-white">
-              {{ e.tier }}
-            </span>
-            <button class="p-1 text-slate-500 hover:bg-slate-50 rounded">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            </button>
-            <button class="p-1 text-slate-500 hover:bg-slate-50 rounded">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Info -->
-          <div class="space-y-1.5 text-[12px] text-slate-700">
+          <div class="space-y-1 text-[12px] text-slate-700">
             <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
               </svg>
-              <span>{{ e.phone }}</span>
+              <span class="truncate">{{ e.phone }}</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
               </svg>
               <span class="truncate">{{ e.address }}</span>
             </div>
-
-            <!-- Position + Xodim biriktirish button -->
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                </svg>
-                <span>{{ e.position }} - {{ e.positionCount }} ta</span>
-              </div>
-              <div class="flex flex-col items-end gap-1">
-                <button
-                  class="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50">
-                  Xodim biriktirish
-                </button>
-                <button
-                  class="w-5 h-5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center">
-                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
             <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              </svg>
+              <span>{{ e.positionTitle }} - {{ e.positionCount }} ta</span>
+            </div>
+            <div v-if="e.salary" class="flex items-center gap-1.5 font-semibold">
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
               <span>{{ formatMoney(e.salary) }} so'm</span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              <span>Sana: {{ e.startDate }}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
+            <div v-if="e.deadline" class="flex items-center gap-1.5" :class="e.isExpired ? 'text-rose-500' : ''">
+              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
               </svg>
               <span>Muddat: {{ e.deadline }}</span>
+              <span v-if="e.isExpired" class="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 border border-rose-200">o'tgan</span>
             </div>
-          </div>
-
-          <!-- Multi-color progress bar -->
-          <div class="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
-            <div class="bg-emerald-400" style="width: 45%"></div>
-            <div class="bg-emerald-500" style="width: 20%"></div>
-            <div class="bg-amber-400" style="width: 15%"></div>
-            <div class="bg-orange-400" style="width: 10%"></div>
-            <div class="bg-red-400" style="width: 10%"></div>
-          </div>
-
-          <!-- Footer: Mos nomzodlar -->
-          <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              <span>Mos nomzodlar</span>
-              <span
-                class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
-                {{ e.candidates }}
-              </span>
-            </div>
-            <span class="text-slate-400">{{ e.candidates }}/{{ e.matchTotal }}</span>
           </div>
         </div>
       </div>

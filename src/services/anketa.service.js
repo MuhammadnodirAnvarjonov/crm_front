@@ -11,4 +11,7 @@ export default {
   statuses: () => http.get(`${BASE}/statuses`),
   addToBlacklist: (id, reason) => http.post(`${BASE}/blacklist/${id}`, { reason }),
   removeFromBlacklist: (id) => http.post(`${BASE}/unblacklist/${id}`),
+  postFreeAd: (id) => http.post(`${BASE}/free-ad/post/${id}`),
+  approveFreeAd: (id) => http.post(`${BASE}/free-ad/approve/${id}`),
+  rejectFreeAd: (id, reason) => http.post(`${BASE}/free-ad/reject/${id}`, { reason }),
 }

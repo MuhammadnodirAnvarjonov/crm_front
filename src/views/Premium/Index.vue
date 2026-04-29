@@ -1,364 +1,260 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import BaseSelect from '@/components/form/BaseSelect.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
+import Form from './Form.vue'
+import contractsService from '@/services/contracts.service'
+import employersService from '@/services/employers.service'
+import { closeIcon } from '@/components/icons/icon-temp'
 
-const statCards = [
-  { label: "Qo'ng'iroqlar", today: 9, total: 16, icon: 'clock', iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
-  { label: 'Anketalar', today: 9, total: 16, icon: 'doc', iconBg: 'bg-slate-50', iconColor: 'text-slate-500' },
-  { label: "Bepul e'lon", today: 9, total: 16, icon: 'bot', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { label: "Pullik e'lon", today: 9, total: 16, icon: 'dollar', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { label: 'Shartnomalar', today: 9, total: 16, icon: 'crown', iconBg: 'bg-amber-50', iconColor: 'text-amber-500' },
-  { label: 'Agent', today: 9, total: 16, icon: 'building', iconBg: 'bg-blue-50', iconColor: 'text-blue-500' },
-]
+const items = ref([])
+const employers = ref([])
+const loading = ref(false)
 
-const dateFilter = ref('')
-const employerFilter = ref('')
-const employerOpen = ref(false)
 const searchQuery = ref('')
-const categoryFilter = ref('Barchasi')
+const tierFilter = ref(null)
+const statusFilter = ref(null)
+const employerFilter = ref(null)
+const expiredFilter = ref(false)
 
-const employerOptions = [
-  'Aziz Rahmonov',
-  "Jahongir Ortiqxo'jayev",
-  'Shaxboz Sultunov',
-  'Aziz Rahmonov',
-  'Shaxboz Sultunov',
-  "Jahongir Ortiqxo'jayev",
+const showModal = ref(false)
+const editData = ref(null)
+const showConfirm = ref(false)
+const itemToDelete = ref(null)
+
+const tierOptions = [
+  { value: 'basic', name: 'Asosiy' },
+  { value: 'premium_a', name: 'Premium A' },
+  { value: 'premium_b', name: 'Premium B' },
+  { value: 'premium_v', name: 'Premium V' },
 ]
-
-const employerDropdownRef = ref(null)
-const onDocClick = (e) => {
-  if (employerDropdownRef.value && !employerDropdownRef.value.contains(e.target)) {
-    employerOpen.value = false
-  }
+const statusOptions = [
+  { value: 'active', name: 'Faol' },
+  { value: 'expired', name: "Muddati o'tgan" },
+  { value: 'cancelled', name: 'Bekor qilingan' },
+  { value: 'completed', name: 'Yakunlangan' },
+]
+const TIER_LABELS = {
+  basic: 'Asosiy', premium_a: 'Premium A', premium_b: 'Premium B', premium_v: 'Premium V',
 }
-onMounted(() => document.addEventListener('click', onDocClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
-
-const selectEmployer = (name) => {
-  employerFilter.value = name
-  employerOpen.value = false
-}
-
-// Cards — 8 total
-const basePositions = [
-  [
-    { role: 'Ofitsiant', count: 2 },
-    { role: 'Bugalter', count: 1 },
-  ],
-  [
-    { role: 'Dasturchi', count: 2 },
-    { role: 'Farrosh', count: 3 },
-  ],
-  [
-    { role: 'Dizayner', count: 1 },
-    { role: 'Chuchvarachi', count: 3 },
-  ],
-]
-
-const progressSegments = [
-  { value: 22, color: '#22c55e', label: 'Yuborildi' },
-  { value: 18, color: '#16a34a', label: "Tasdiqlandi" },
-  { value: 16, color: '#eab308', label: 'Suhbat' },
-  { value: 12, color: '#f97316', label: 'Sinov' },
-  { value: 10, color: '#3b82f6', label: 'Anketa' },
-  { value: 12, color: '#8b5cf6', label: 'Qabul qilindi' },
-  { value: 10, color: '#ef4444', label: "Rad etildi" },
-]
-
-const baseCard = {
-  id: '7897897', company: 'Grand Hotel', contact: 'Jamshid Rahimov',
-  phone: '+998901111113', address: "Toshkent, Navoiy ko'chasi 28",
-  positions: basePositions,
-  startDate: '15.01.2025', deadline: '25.01.2025',
-  candidates: 12,
+const STATUS_LABELS = {
+  active: 'Faol', expired: "Muddati o'tgan", cancelled: 'Bekor qilingan', completed: 'Yakunlangan',
 }
 
-const employers = ref(Array.from({ length: 8 }, () => ({ ...baseCard })))
+const employerOptions = computed(() => employers.value.map((e) => ({ id: e.id, name: e.name })))
+
+const formatDate = (d) => {
+  if (!d) return ''
+  const dt = new Date(d); if (isNaN(dt.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(dt.getDate())}.${pad(dt.getMonth() + 1)}.${dt.getFullYear()}`
+}
+const formatMoney = (v) => v ? Number(v).toLocaleString('fr-FR').replace(/\s/g, ',') : '0'
+
+const view = computed(() => items.value.map((c) => ({
+  id: c.id, raw: c,
+  displayId: String(c.id).padStart(7, '0'),
+  contractNumber: c.contract_number || `№${c.id}`,
+  employerName: c.employer?.name || '—',
+  employerPhone: c.employer?.phone || '',
+  tier: c.tier, tierLabel: TIER_LABELS[c.tier] || c.tier,
+  status: c.status, statusLabel: STATUS_LABELS[c.status] || c.status,
+  startDate: formatDate(c.start_date),
+  endDate: formatDate(c.end_date),
+  totalAmount: c.total_amount ? Number(c.total_amount) : 0,
+  isExpired: !!c.is_expired,
+  daysLeft: c.days_left,
+})))
 
 const filtered = computed(() => {
-  let list = employers.value
+  let list = view.value
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter((e) => e.company.toLowerCase().includes(q) || e.phone.includes(q))
+    list = list.filter((c) => c.employerName.toLowerCase().includes(q) || c.contractNumber.toLowerCase().includes(q))
   }
+  if (tierFilter.value) list = list.filter((c) => c.tier === tierFilter.value)
+  if (statusFilter.value) list = list.filter((c) => c.status === statusFilter.value)
+  if (employerFilter.value) list = list.filter((c) => c.raw.employer_id === employerFilter.value)
+  if (expiredFilter.value) list = list.filter((c) => c.isExpired)
   return list
 })
+
+const tierBadge = (t) => {
+  if (t === 'premium_v') return 'bg-purple-100 text-purple-700 border-purple-200'
+  if (t === 'premium_b') return 'bg-indigo-100 text-indigo-700 border-indigo-200'
+  if (t === 'premium_a') return 'bg-blue-100 text-blue-700 border-blue-200'
+  return 'bg-slate-100 text-slate-700 border-slate-200'
+}
+const statusBadge = (s) => {
+  if (s === 'active') return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+  if (s === 'expired') return 'bg-rose-100 text-rose-700 border-rose-200'
+  if (s === 'cancelled') return 'bg-slate-100 text-slate-700 border-slate-200'
+  return 'bg-amber-100 text-amber-700 border-amber-200'
+}
+
+const loadAll = async () => {
+  loading.value = true
+  try { items.value = (await contractsService.all()) || [] }
+  catch (e) { console.error(e); items.value = [] }
+  finally { loading.value = false }
+}
+const loadEmployers = async () => {
+  try { employers.value = (await employersService.all()) || [] } catch (e) { console.error(e) }
+}
+
+const openForm = (data = null) => { editData.value = data; showModal.value = true }
+const closeForm = () => { showModal.value = false; editData.value = null }
+const openEdit = (item) => openForm(item.raw)
+
+const promptDelete = (item) => { itemToDelete.value = item; showConfirm.value = true }
+const handleConfirmDelete = async () => {
+  if (!itemToDelete.value) return
+  try { await contractsService.delete(itemToDelete.value.id); showConfirm.value = false; itemToDelete.value = null; await loadAll() }
+  catch (e) { console.error(e); showConfirm.value = false }
+}
+
+const resetFilters = () => {
+  searchQuery.value = ''; tierFilter.value = null; statusFilter.value = null
+  employerFilter.value = null; expiredFilter.value = false
+}
+
+onMounted(() => { loadEmployers(); loadAll() })
 </script>
 
 <template>
   <div class="space-y-4">
-    <!-- Top stat bar -->
-    <div class="flex flex-col sm:flex-row items-stretch gap-3">
-      <button
-        class="h-14 sm:h-auto w-full sm:w-[72px] shrink-0 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md">
-        <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path
-            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-800">{{ $t('premium_contracts') }}</h1>
+        <p class="text-xs text-slate-500 mt-1">Ish beruvchilar bilan tuzilgan shartnomalar</p>
+        <p class="text-[11px] text-slate-400 mt-1">Jami: <span class="font-semibold text-slate-700">{{ filtered.length }}</span></p>
+      </div>
+      <button type="button" @click="openForm()"
+        class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
         </svg>
+        Shartnoma qo'shish
       </button>
+    </div>
 
-      <div class="flex-1 grid grid-cols-2 lg:grid-cols-6 gap-3">
-        <div v-for="(s, i) in statCards" :key="i"
-          class="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center justify-between">
-          <div>
-            <p class="text-[11px] font-semibold text-slate-500">{{ s.label }}</p>
-            <div class="flex gap-3 mt-1">
-              <div>
-                <p class="text-[10px] text-slate-400">Bugungi</p>
-                <p class="text-[14px] font-bold" :class="s.iconColor">{{ s.today }}</p>
-              </div>
-              <div>
-                <p class="text-[10px] text-slate-400">Umumiy</p>
-                <p class="text-[14px] font-bold" :class="s.iconColor">{{ s.total }}</p>
-              </div>
-            </div>
-          </div>
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center" :class="[s.iconBg, s.iconColor]">
-            <svg v-if="s.icon === 'clock'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <polyline points="12 7 12 12 15 14" />
-            </svg>
-            <svg v-else-if="s.icon === 'doc'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="8" y1="13" x2="16" y2="13" />
-              <line x1="8" y1="17" x2="13" y2="17" />
-            </svg>
-            <svg v-else-if="s.icon === 'bot'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="8" width="16" height="12" rx="2" />
-              <path d="M12 8V4M8 4h8" />
-              <circle cx="9" cy="13" r="1" />
-              <circle cx="15" cy="13" r="1" />
-              <path d="M10 17h4" />
-            </svg>
-            <svg v-else-if="s.icon === 'dollar'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-            <svg v-else-if="s.icon === 'crown'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 18l2-10 5 4 3-8 3 8 5-4 2 10H2z" />
-            </svg>
-            <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="2" width="16" height="20" rx="2" />
-              <path d="M9 22V12h6v10M9 6h.01M15 6h.01M9 10h.01M15 10h.01" />
-            </svg>
-          </div>
-        </div>
+    <!-- Filters -->
+    <div class="bg-white rounded-xl border border-slate-100 p-3 space-y-3">
+      <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+        <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input v-model="searchQuery" placeholder="Kompaniya yoki shartnoma raqami..."
+          class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <BaseSelect v-model="tierFilter" :options="tierOptions" labelKey="name" valueKey="value" placeholder="Tarif" size="sm" />
+        <BaseSelect v-model="statusFilter" :options="statusOptions" labelKey="name" valueKey="value" placeholder="Holati" size="sm" />
+        <BaseSelect v-model="employerFilter" :options="employerOptions" labelKey="name" valueKey="id" placeholder="Ish beruvchi" size="sm" />
+        <label class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-[12px] cursor-pointer hover:bg-slate-50">
+          <input type="checkbox" v-model="expiredFilter" class="w-4 h-4 rounded border-slate-300 text-rose-500" />
+          <span>Muddati o'tgan</span>
+        </label>
+        <button type="button" @click="resetFilters"
+          class="text-[12px] text-slate-500 hover:text-slate-700 font-medium flex items-center justify-center gap-1 border border-slate-200 rounded-lg">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
+          Tozalash
+        </button>
       </div>
     </div>
 
-    <!-- Filter panel: 2 dropdowns on left + search + dropdown right -->
-    <div class="bg-white rounded-xl border border-slate-100 p-3 grid grid-cols-1 lg:grid-cols-[200px_1fr_160px] gap-3">
-      <!-- Left: two stacked dropdowns -->
-      <div class="space-y-2">
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-          </div>
-          <select v-model="dateFilter"
-            class="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 appearance-none focus:outline-none focus:border-blue-400">
-            <option value="">Sana bo'yicha filtrlash</option>
-            <option value="today">Bugun</option>
-            <option value="week">Shu hafta</option>
-            <option value="month">Shu oy</option>
-          </select>
-          <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </div>
-        </div>
-
-        <!-- Ish beruvchilar custom dropdown -->
-        <div ref="employerDropdownRef" class="relative">
-          <button @click.stop="employerOpen = !employerOpen"
-            class="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 text-left focus:outline-none focus:border-blue-400">
-            <svg class="absolute top-1/2 left-3 -translate-y-1/2 w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-            </svg>
-            {{ employerFilter || 'Ish beruvchilar' }}
-            <svg class="absolute top-1/2 right-3 -translate-y-1/2 w-3 h-3 text-slate-400" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          <div v-if="employerOpen"
-            class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 max-h-64 overflow-y-auto">
-            <button v-for="(name, i) in employerOptions" :key="i" @click="selectEmployer(name)"
-              class="w-full text-left px-3 py-2 text-[13px] text-slate-700 hover:bg-blue-50 hover:text-blue-600">
-              {{ name }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Middle: search -->
-      <div class="relative">
-        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </div>
-        <input v-model="searchQuery" placeholder="Filtrlash"
-          class="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-[13px] placeholder-slate-400 focus:outline-none focus:border-blue-400" />
-      </div>
-
-      <!-- Right: category -->
-      <div class="relative">
-        <select v-model="categoryFilter"
-          class="w-full pl-3 pr-8 py-2 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 appearance-none focus:outline-none focus:border-blue-400">
-          <option>Barchasi</option>
-          <option>Premium A</option>
-          <option>Premium B</option>
-          <option>Premium V</option>
-        </select>
-        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      </div>
+    <!-- Empty -->
+    <div v-if="!loading && filtered.length === 0" class="bg-white rounded-xl border border-slate-100 py-16 px-4 text-center">
+      <p class="text-slate-500 text-sm">Shartnomalar topilmadi</p>
     </div>
 
-    <!-- Cards grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-      <div v-for="(e, i) in filtered" :key="i"
-        class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:shadow-md transition">
-        <!-- Gradient orange top strip -->
-        <div class="h-1.5" style="background: linear-gradient(90deg, #fb923c, #f97316)"></div>
-
+    <!-- Cards -->
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div v-for="c in filtered" :key="c.id" class="bg-white rounded-xl border border-slate-100 overflow-hidden hover:shadow-md transition">
+        <div class="h-1.5 bg-amber-400"></div>
         <div class="p-3 space-y-2">
-          <!-- Top: avatar + name + id -->
-          <div class="flex items-start gap-2">
-            <div
-              class="w-10 h-10 rounded-full bg-amber-400 text-white flex items-center justify-center font-bold shrink-0">
-              {{ e.company.charAt(0) }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-[14px] font-bold text-slate-800 truncate">{{ e.company }}</p>
-              <p class="text-[11px] text-slate-500 truncate">{{ e.contact }}</p>
-            </div>
-            <p class="text-[10px] text-slate-400 whitespace-nowrap mt-1">id:0000 {{ e.id }}</p>
+          <div class="flex items-center justify-between">
+            <p class="text-[10px] text-slate-400">id: {{ c.displayId }}</p>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded border" :class="tierBadge(c.tier)">{{ c.tierLabel }}</span>
           </div>
 
-          <!-- Action icons -->
-          <div class="flex items-center justify-end gap-1.5 -mt-1">
-            <button class="p-1 text-slate-500 hover:bg-slate-50 rounded">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            </button>
-            <button class="p-1 text-slate-500 hover:bg-slate-50 rounded">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
+          <div>
+            <p class="text-[13px] font-bold text-slate-800 truncate">{{ c.employerName }}</p>
+            <p class="text-[11px] text-slate-500">№ {{ c.contractNumber }}</p>
           </div>
 
-          <!-- Phone + location -->
           <div class="space-y-1 text-[12px] text-slate-700">
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            <div v-if="c.startDate || c.endDate" class="flex items-center gap-1.5">
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
               </svg>
-              <span>{{ e.phone }}</span>
+              <span>{{ c.startDate || '—' }} → {{ c.endDate || '—' }}</span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
+            <div v-if="c.daysLeft != null" class="flex items-center gap-1.5"
+              :class="c.isExpired ? 'text-rose-500' : c.daysLeft < 7 ? 'text-amber-600' : 'text-emerald-600'">
+              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
               </svg>
-              <span class="truncate">{{ e.address }}</span>
+              <span v-if="c.isExpired">{{ Math.abs(c.daysLeft) }} kun oldin tugagan</span>
+              <span v-else>{{ c.daysLeft }} kun qoldi</span>
+            </div>
+            <div v-if="c.totalAmount" class="flex items-center gap-1.5 font-bold">
+              <svg class="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <span>{{ formatMoney(c.totalAmount) }} so'm</span>
             </div>
           </div>
 
-          <!-- Positions grid (2 columns × 3 rows) -->
-          <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px] text-slate-700">
-            <template v-for="(row, ri) in e.positions">
-              <div v-for="(p, pi) in row" :key="`${ri}-${pi}`" class="flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded border" :class="statusBadge(c.status)">
+              {{ c.statusLabel }}
+            </span>
+            <div class="flex items-center gap-1">
+              <button @click="openEdit(c)" title="Tahrirlash"
+                class="w-7 h-7 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                <span>{{ p.role }} - {{ p.count }} ta</span>
-              </div>
-            </template>
-          </div>
-
-          <!-- Dates row -->
-          <div class="grid grid-cols-2 gap-3 text-[12px] text-slate-700 pt-1">
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              <span>Sana: {{ e.startDate }}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              <span>Muddat: {{ e.deadline }}</span>
-            </div>
-          </div>
-
-          <!-- Progress bar with mini labels -->
-          <div class="pt-1">
-            <div class="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
-              <div v-for="(seg, si) in progressSegments" :key="si"
-                :style="{ width: seg.value + '%', background: seg.color }"></div>
-            </div>
-            <div class="flex text-[7px] text-slate-400 mt-0.5 leading-tight">
-              <div v-for="(seg, si) in progressSegments" :key="si"
-                :style="{ width: seg.value + '%' }" class="text-center truncate px-0.5">
-                {{ seg.label }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-            <div class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              <span>Mos nomzodlar</span>
-              <span
-                class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
-                {{ e.candidates }}
-              </span>
+              </button>
+              <button @click="promptDelete(c)" title="O'chirish"
+                class="w-7 h-7 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <Transition name="modal">
+      <div v-if="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeForm"></div>
+        <div class="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl flex flex-col max-h-[90vh]">
+          <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+            <h3 class="text-lg font-bold text-gray-800">{{ editData?.id ? 'Shartnomani tahrirlash' : "Shartnoma qo'shish" }}</h3>
+            <button class="text-gray-400 hover:text-red-500 p-1" @click="closeForm"><closeIcon class="w-6 h-6" /></button>
+          </div>
+          <div class="p-4 sm:p-6 overflow-y-auto">
+            <Form :edit-data="editData" @close="closeForm" @saved="loadAll" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <ConfirmModal v-if="showConfirm" :show="showConfirm" title="Shartnomani o'chirish"
+      :message="`${itemToDelete?.contractNumber || ''} ni o'chirishni tasdiqlaysizmi?`"
+      confirm-text="Ha, o'chirish" cancel-text="Bekor qilish" type="danger" :duration="5"
+      @confirm="handleConfirmDelete" @cancel="showConfirm = false" />
   </div>
 </template>
+
+<style scoped>
+.modal-enter-active, .modal-leave-active { transition: opacity 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+</style>
