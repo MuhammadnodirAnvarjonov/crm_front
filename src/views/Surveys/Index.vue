@@ -7,19 +7,25 @@ import anketaService from '@/services/anketa.service'
 import anketaTypesService from '@/services/anketaTypes.service'
 import jobTypesService from '@/services/jobTypes.service'
 import regionsService from '@/services/regions.service'
+import statsService from '@/services/stats.service'
 import BaseSelect from '@/components/form/BaseSelect.vue'
 import { closeIcon } from '@/components/icons/icon-temp'
 
 const { locale } = useI18n()
 
-const statCards = [
-  { label: "Qo'ng'iroqlar", today: 9, total: 16, icon: 'clock', iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
-  { label: 'Anketalar', today: 9, total: 16, icon: 'doc', iconBg: 'bg-slate-50', iconColor: 'text-slate-500' },
-  { label: "Bepul e'lon", today: 9, total: 16, icon: 'bot', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { label: "Pullik e'lon", today: 9, total: 16, icon: 'dollar', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
-  { label: 'Shartnomalar', today: 9, total: 16, icon: 'crown', iconBg: 'bg-amber-50', iconColor: 'text-amber-500' },
-  { label: 'Agent', today: 9, total: 16, icon: 'building', iconBg: 'bg-blue-50', iconColor: 'text-blue-500' },
-]
+const countsData = ref(null)
+
+const statCards = computed(() => {
+  const c = countsData.value || {}
+  return [
+    { label: "Qo'ng'iroqlar", today: c.call?.today ?? 0,     total: c.call?.total ?? 0,     icon: 'clock',    iconBg: 'bg-orange-50', iconColor: 'text-orange-500' },
+    { label: 'Anketalar',      today: c.anketa?.today ?? 0,   total: c.anketa?.total ?? 0,   icon: 'doc',      iconBg: 'bg-slate-50',  iconColor: 'text-slate-500' },
+    { label: "Bepul e'lon",   today: c.free_ad?.today ?? 0,  total: c.free_ad?.total ?? 0,  icon: 'bot',      iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+    { label: "Pullik e'lon",  today: c.premium?.today ?? 0,  total: c.premium?.total ?? 0,  icon: 'dollar',   iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+    { label: 'Shartnomalar',   today: c.contract?.today ?? 0, total: c.contract?.total ?? 0, icon: 'crown',    iconBg: 'bg-amber-50',  iconColor: 'text-amber-500' },
+    { label: 'Agent',          today: c.agent?.today ?? 0,    total: c.agent?.total ?? 0,    icon: 'building', iconBg: 'bg-blue-50',   iconColor: 'text-blue-500' },
+  ]
+})
 
 const dateFilter = ref('week')
 const searchQuery = ref('')
@@ -343,9 +349,15 @@ const handleConfirmDelete = async () => {
   }
 }
 
+const loadCounts = async () => {
+  try { countsData.value = await statsService.counts() }
+  catch (e) { console.error('Counts load error', e) }
+}
+
 onMounted(() => {
   loadLookups()
   loadAnketas()
+  loadCounts()
 })
 </script>
 

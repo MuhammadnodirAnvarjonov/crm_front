@@ -21,7 +21,7 @@ const router = createRouter({
         { path: '/surveys', name: 'surveys', component: () => import('@/views/Surveys/Index.vue') },
         { path: '/tasks', name: 'tasks', component: () => import('@/views/Tasks/Index.vue') },
         { path: '/messages', name: 'messages', component: Placeholder },
-        { path: '/blacklist', name: 'blacklist', component: () => import('@/views/Blacklist/Index.vue') },
+        { path: '/blacklist', redirect: '/candidates' },
         { path: '/advertising', name: 'advertising', component: () => import('@/views/Advertising/Index.vue') },
         { path: '/agent', name: 'agent', component: () => import('@/views/Agent/Index.vue') },
         { path: '/users', name: 'users', component: () => import('@/views/users/Index.vue') },
@@ -30,12 +30,13 @@ const router = createRouter({
         { path: '/anketa-types', name: 'anketa-types', component: () => import('@/views/AnketaTypes/Index.vue') },
       ],
     },
+    { path: '/anketa-form', name: 'anketa-form', component: () => import('@/views/PublicAnketa/Index.vue') },
     { path: '/login', name: 'Login', component: () => import('@/views/Log/Index.vue') },
     { path: '/:pathMatch(.*)*', name: 'error page', component: () => import('@/views/error.vue') },
   ],
 })
 
-const PUBLIC_ROUTES = ['Login', 'error page']
+const PUBLIC_ROUTES = ['Login', 'error page', 'anketa-form']
 
 const findFirstAllowed = (userStore) => {
   for (const { key, route } of getPermissionRoutes()) {

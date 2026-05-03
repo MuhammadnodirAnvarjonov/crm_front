@@ -12,7 +12,6 @@ export const MENU_CONFIG = [
   { key: 'surveys', label: 'surveys', pageLabel: 'surveys', icon: 'document', route: '/surveys', group: 'menu_main' },
   { key: 'tasks', label: 'tasks', pageLabel: 'tasks', icon: 'calendar', route: '/tasks', group: 'menu_main' },
   { key: 'messages', label: 'messages', pageLabel: 'messages', icon: 'chat', route: '/messages', group: 'menu_main' },
-  { key: 'blacklist', label: 'blacklist', pageLabel: 'blacklist', icon: 'blocked', route: '/blacklist', group: 'menu_main' },
   { key: 'advertising', label: 'advertising', pageLabel: 'advertising', icon: 'megaphone', route: '/advertising', group: 'menu_main' },
   { key: 'agent', label: 'agent', pageLabel: 'agent', icon: 'userCog', route: '/agent', group: 'menu_main' },
 

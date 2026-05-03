@@ -105,6 +105,7 @@ const CRUD = ['read', 'create', 'update', 'delete']
 
 const generalSettings = computed(() => ({
   switch_users: t('switch_users'),
+  timeweb_info: 'Timeweb: balans va server muddatini ko\'rish',
 }))
 
 const pageGroups = buildPageGroups()
@@ -118,7 +119,7 @@ const defaultPages = () => {
   return obj
 }
 
-const defaultSettings = { switch_users: false }
+const defaultSettings = { switch_users: false, timeweb_info: false }
 
 const form = ref({
   name: '',

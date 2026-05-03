@@ -1,16 +1,98 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, inject, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, inject, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
+import timewebService from '@/services/timeweb.service'
 
 defineProps({ collapsed: Boolean, isMobile: Boolean })
 const emit = defineEmits(['toggle-sidebar', 'toggle-mobile'])
 
+const router = useRouter()
 const userStore = useUserStore()
 const uiStore = useUiStore()
 const fileUrl = inject('fileUrl')
 const { locale } = useI18n()
+
+// ─── Timeweb info ────────────────────────────────────────────
+const twBalance = ref(null)
+const twServers = ref([])
+const twLoading = ref(false)
+const twOpen = ref(false)
+const twRef = ref(null)
+
+const showTimeweb = computed(() => userStore.roleSetting('timeweb_info'))
+
+const loadTimeweb = async () => {
+  if (!showTimeweb.value) return
+  twLoading.value = true
+  try {
+    const data = await timewebService.getInfo()
+    twBalance.value = data?.balance ?? null
+    twServers.value = data?.servers ?? []
+  } catch {
+    twBalance.value = null
+    twServers.value = []
+  } finally {
+    twLoading.value = false
+  }
+}
+
+watch(showTimeweb, (val) => { if (val) loadTimeweb() }, { immediate: true })
+
+const twBalanceAmount = computed(() => {
+  if (!twBalance.value) return null
+  const amount = twBalance.value.balance ?? twBalance.value.amount ?? null
+  if (amount === null) return null
+  return Number(amount).toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+})
+
+const twCurrency = computed(() => {
+  const cur = twBalance.value?.currency ?? 'RUB'
+  return cur === 'RUB' ? '₽' : cur
+})
+
+// Expiry date: server end_at → fallback to hours_left from finances
+const twEndDate = computed(() => {
+  // 1. Try server list
+  for (const s of twServers.value) {
+    const raw = s.end_at || s.end_date || s.expired_at || s.endAt || null
+    if (raw) return new Date(raw)
+  }
+  // 2. Fallback: hours_left from finances
+  const hoursLeft = twBalance.value?.hours_left ?? null
+  if (hoursLeft !== null && hoursLeft > 0) {
+    return new Date(Date.now() + hoursLeft * 3600000)
+  }
+  return null
+})
+
+const twDaysLeft = computed(() => {
+  if (!twEndDate.value) return null
+  return Math.ceil((twEndDate.value.getTime() - Date.now()) / 86400000)
+})
+
+const RU_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря']
+
+const twEndLabel = computed(() => {
+  if (!twEndDate.value) return null
+  const d = twEndDate.value
+  return `до ${d.getDate()} ${RU_MONTHS[d.getMonth()]}`
+})
+
+const twDaysColor = computed(() => {
+  const d = twDaysLeft.value
+  if (d === null) return 'text-slate-400 dark:text-slate-500'
+  if (d <= 3) return 'text-red-500'
+  if (d <= 7) return 'text-orange-500'
+  return 'text-slate-500 dark:text-slate-400'
+})
+
+const onClickOutsideTw = (e) => {
+  if (!twOpen.value) return
+  if (twRef.value && !twRef.value.contains(e.target)) twOpen.value = false
+}
 
 // ─── Language switcher ──────────────────────────────────────
 const languages = [
@@ -100,11 +182,13 @@ onMounted(() => {
   timer = setInterval(updateTime, 30000)
   document.addEventListener('mousedown', onClickOutside)
   document.addEventListener('mousedown', onClickOutsideLang)
+  document.addEventListener('mousedown', onClickOutsideTw)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
   document.removeEventListener('mousedown', onClickOutside)
   document.removeEventListener('mousedown', onClickOutsideLang)
+  document.removeEventListener('mousedown', onClickOutsideTw)
 })
 </script>
 
@@ -175,7 +259,7 @@ onBeforeUnmount(() => {
 
     <!-- Middle: stat buttons -->
     <div class="hidden md:flex items-center gap-2">
-      <button
+      <button @click="router.push('/free-ads')"
         class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[12px] font-semibold shadow-sm transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round">
@@ -186,7 +270,7 @@ onBeforeUnmount(() => {
         <span class="bg-white/25 text-white text-[11px] font-bold px-1.5 py-0.5 rounded">100</span>
       </button>
 
-      <button
+      <button @click="router.push('/paid-ads')"
         class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-[12px] font-semibold shadow-sm transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round">
@@ -197,7 +281,7 @@ onBeforeUnmount(() => {
         <span class="bg-white/25 text-white text-[11px] font-bold px-1.5 py-0.5 rounded">100</span>
       </button>
 
-      <button
+      <button @click="router.push('/surveys')"
         class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-[12px] font-semibold shadow-sm transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -208,7 +292,7 @@ onBeforeUnmount(() => {
         <span class="bg-white/30 text-white text-[11px] font-bold px-1.5 py-0.5 rounded">9</span>
       </button>
 
-      <button
+      <button @click="router.push('/advertising')"
         class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-[12px] font-semibold shadow-sm transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -219,7 +303,7 @@ onBeforeUnmount(() => {
         <span class="bg-white/30 text-white text-[11px] font-bold px-1.5 py-0.5 rounded">9</span>
       </button>
 
-      <button
+      <button @click="router.push('/premium')"
         class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-500 text-white text-[12px] font-semibold shadow-sm transition">
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -232,6 +316,110 @@ onBeforeUnmount(() => {
 
     <!-- Right: chat + clock + theme + notifications -->
     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <!-- Timeweb info widget -->
+      <div v-if="showTimeweb" ref="twRef" class="relative">
+        <button @click="twOpen = !twOpen"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition"
+          :class="twDaysLeft !== null && twDaysLeft <= 3
+            ? 'border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-800 hover:bg-red-100'
+            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'">
+          <!-- Wallet icon -->
+          <svg class="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 12V8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+            <path d="M20 12a2 2 0 0 0-2-2h-2a2 2 0 0 0 0 4h2a2 2 0 0 0 2-2z" />
+          </svg>
+
+          <span v-if="twLoading" class="text-[12px] text-slate-400">...</span>
+          <template v-else>
+            <span class="text-[13px] font-bold text-slate-800 dark:text-slate-100">
+              {{ twBalanceAmount ?? '—' }} {{ twCurrency }}
+            </span>
+            <span v-if="twEndLabel"
+              class="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+              :class="twDaysLeft !== null && twDaysLeft <= 3
+                ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+                : twDaysLeft !== null && twDaysLeft <= 7
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
+              {{ twEndLabel }}
+            </span>
+          </template>
+        </button>
+
+        <Transition name="chat">
+          <div v-if="twOpen"
+            class="absolute right-0 top-[calc(100%+6px)] z-50 w-[270px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+            <div class="px-3 py-2.5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <span class="text-[12px] font-bold text-slate-700 dark:text-slate-200">Timeweb hisobi</span>
+              <button @click.stop="loadTimeweb" :disabled="twLoading"
+                class="text-slate-400 hover:text-blue-500 transition p-1 rounded">
+                <svg class="w-3.5 h-3.5" :class="twLoading ? 'animate-spin' : ''"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="p-3 space-y-2.5">
+              <!-- Balance row -->
+              <div class="flex items-center justify-between">
+                <span class="text-[12px] text-slate-500 dark:text-slate-400">Balans</span>
+                <span class="text-[14px] font-bold text-slate-800 dark:text-slate-100">
+                  {{ twBalanceAmount ?? '—' }} {{ twCurrency }}
+                </span>
+              </div>
+
+              <!-- Expiry row -->
+              <div class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-2.5">
+                <span class="text-[12px] text-slate-500 dark:text-slate-400">To'lov muddati</span>
+                <div class="flex items-center gap-1.5">
+                  <span v-if="twEndLabel" class="text-[13px] font-bold" :class="twDaysColor">
+                    {{ twEndLabel }}
+                  </span>
+                  <span v-if="twDaysLeft !== null"
+                    class="text-[11px] px-1.5 py-0.5 rounded-md font-medium"
+                    :class="twDaysLeft <= 3
+                      ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400'
+                      : twDaysLeft <= 7
+                        ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
+                    {{ twDaysLeft }} kun
+                  </span>
+                  <span v-else-if="!twLoading" class="text-[12px] text-slate-400">—</span>
+                </div>
+              </div>
+
+              <!-- Servers -->
+              <div v-if="twServers.length" class="border-t border-slate-100 dark:border-slate-700 pt-2.5 space-y-1.5">
+                <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Serverlar</p>
+                <div v-for="s in twServers" :key="s.id"
+                  class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                  <div class="min-w-0">
+                    <p class="text-[12px] font-semibold text-slate-700 dark:text-slate-200 truncate">
+                      {{ s.name || s.comment || 'Server' }}
+                    </p>
+                    <p class="text-[10px] text-slate-400">
+                      {{ s.cpu ?? '?' }} CPU · {{ s.ram ?? '?' }} MB RAM
+                    </p>
+                  </div>
+                  <div class="text-right shrink-0 ml-2">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
+                      :class="s.status === 'on' || s.status === 'running'
+                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'">
+                      <span class="w-1.5 h-1.5 rounded-full"
+                        :class="s.status === 'on' || s.status === 'running' ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+                      {{ s.status || '—' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
+
       <!-- Operator chat -->
       <div ref="chatRef" class="relative">
         <button @click="toggleChat" :title="'Operatorlar chat'"

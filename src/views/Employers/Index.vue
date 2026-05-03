@@ -16,7 +16,6 @@ const loading = ref(false)
 
 const searchQuery = ref('')
 const tierFilter = ref(null)
-const formTypeFilter = ref(null)
 const statusFilter = ref(null)
 const regionFilter = ref(null)
 const districtFilter = ref(null)
@@ -34,10 +33,6 @@ const tierOptions = [
   { value: 'premium_a', name: 'Premium A' },
   { value: 'premium_b', name: 'Premium B' },
   { value: 'premium_v', name: 'Premium V' },
-]
-const formTypeOptions = [
-  { value: 'partial', name: 'Qisman' },
-  { value: 'full', name: "To'liq" },
 ]
 const statusOptions = [
   { value: 'active', name: 'Faol' },
@@ -95,7 +90,6 @@ const view = computed(() => items.value.map((e) => {
     isExpired: !!e.is_expired,
     tier: e.tier,
     tierLabel: TIER_LABELS[e.tier] || e.tier,
-    formType: e.form_type,
     status: e.status,
     statusLabel: STATUS_LABELS[e.status] || e.status,
     accent: e.tier && e.tier !== 'free' ? 'pink' : 'orange',
@@ -111,25 +105,12 @@ const filtered = computed(() => {
     list = list.filter((e) => e.name.toLowerCase().includes(q) || e.phone.includes(q) || e.contactPerson.toLowerCase().includes(q))
   }
   if (tierFilter.value) list = list.filter((e) => e.tier === tierFilter.value)
-  if (formTypeFilter.value) list = list.filter((e) => e.formType === formTypeFilter.value)
   if (statusFilter.value) list = list.filter((e) => e.status === statusFilter.value)
   if (regionFilter.value) list = list.filter((e) => e.raw.region_id === regionFilter.value)
   if (districtFilter.value) list = list.filter((e) => e.raw.district_id === districtFilter.value)
   if (expiredFilter.value) list = list.filter((e) => e.isExpired)
   return list
 })
-
-const counts = computed(() => ({
-  all: view.value.length,
-  partial: view.value.filter((e) => e.formType === 'partial').length,
-  full: view.value.filter((e) => e.formType === 'full').length,
-}))
-
-const subTabList = computed(() => [
-  { name: 'Barchasi', value: null, count: counts.value.all },
-  { name: 'Qisman', value: 'partial', count: counts.value.partial },
-  { name: "To'liq", value: 'full', count: counts.value.full },
-])
 
 const accentBar = (a) => (a === 'pink' ? 'bg-pink-500' : 'bg-orange-400')
 const statusBadge = (status) => {
@@ -160,8 +141,8 @@ const loadRegions = async () => {
   try { regions.value = (await regionsService.all({})) || [] } catch (e) { console.error(e) }
 }
 
-const openForm = (data = null, formType = null) => {
-  editData.value = data || (formType ? { form_type: formType } : null)
+const openForm = (data = null) => {
+  editData.value = data
   showModal.value = true
 }
 const closeForm = () => { showModal.value = false; editData.value = null }
@@ -181,7 +162,6 @@ const handleConfirmDelete = async () => {
 const resetFilters = () => {
   searchQuery.value = ''
   tierFilter.value = null
-  formTypeFilter.value = null
   statusFilter.value = null
   regionFilter.value = null
   districtFilter.value = null
@@ -200,22 +180,14 @@ onMounted(() => { loadRegions(); loadAll() })
         <p class="text-xs sm:text-sm text-slate-500 mt-1">{{ $t('manage_employers') }}</p>
         <p class="text-[11px] text-slate-400 mt-1">Jami: <span class="font-semibold text-slate-700">{{ filtered.length }}</span></p>
       </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <button type="button" @click="openForm(null, 'partial')"
+      <div class="flex items-center gap-2">
+        <button type="button" @click="openForm()"
           class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Qisman anketa
-        </button>
-        <button type="button" @click="openForm(null, 'full')"
-          class="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold shadow-sm">
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          To'liq anketa
+          Yangi ish beruvchi
         </button>
       </div>
     </div>
@@ -231,9 +203,8 @@ onMounted(() => { loadRegions(); loadAll() })
           class="flex-1 bg-transparent text-[13px] placeholder-slate-400 focus:outline-none" />
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
         <BaseSelect v-model="tierFilter" :options="tierOptions" labelKey="name" valueKey="value" placeholder="Tarif" size="sm" />
-        <BaseSelect v-model="formTypeFilter" :options="formTypeOptions" labelKey="name" valueKey="value" placeholder="Forma turi" size="sm" />
         <BaseSelect v-model="statusFilter" :options="statusOptions" labelKey="name" valueKey="value" placeholder="Holati" size="sm" />
         <BaseSelect v-model="regionFilter" :options="regionOptions" labelKey="name" valueKey="id" placeholder="Viloyat" size="sm" />
         <BaseSelect v-model="districtFilter" :options="districtOptions" labelKey="name" valueKey="id" placeholder="Tuman" size="sm" :disabled="!regionFilter" />
@@ -254,15 +225,6 @@ onMounted(() => { loadRegions(); loadAll() })
           Filterni tozalash
         </button>
       </div>
-    </div>
-
-    <!-- Sub-tabs -->
-    <div class="bg-slate-100 rounded-lg p-1 grid grid-cols-3 gap-1">
-      <button v-for="tab in subTabList" :key="tab.name" @click="formTypeFilter = tab.value"
-        class="py-2 rounded-md text-[13px] font-semibold transition"
-        :class="formTypeFilter === tab.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
-        {{ tab.name }} ({{ tab.count }})
-      </button>
     </div>
 
     <!-- Empty -->
@@ -375,18 +337,17 @@ onMounted(() => { loadRegions(); loadAll() })
 
     <!-- Modal -->
     <Transition name="modal">
-      <div v-if="showModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
-        <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" @click="closeForm"></div>
-        <div class="modal-content relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl flex flex-col max-h-[95vh] sm:max-h-[90vh]">
-          <div class="px-4 sm:px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
-            <h3 class="text-lg font-bold text-gray-800">
-              {{ editData?.id ? 'Ish beruvchini tahrirlash' : (editData?.form_type === 'full' ? "To'liq anketa" : 'Qisman anketa') }}
+      <div v-if="showModal" class="fixed inset-0 z-50 flex flex-col">
+        <div class="flex flex-col flex-1 bg-white dark:bg-slate-900 overflow-hidden">
+          <div class="px-4 sm:px-6 py-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-800 shrink-0">
+            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">
+              {{ editData?.id ? 'Ish beruvchini tahrirlash' : 'Yangi ish beruvchi' }}
             </h3>
             <button class="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50" @click="closeForm">
               <closeIcon class="w-6 h-6" />
             </button>
           </div>
-          <div class="p-4 sm:p-6 overflow-y-auto">
+          <div class="flex-1 overflow-y-auto p-4 sm:p-6">
             <Form :edit-data="editData" @close="closeForm" @saved="loadAll" />
           </div>
         </div>
